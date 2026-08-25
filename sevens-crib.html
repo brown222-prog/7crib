@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sevens Crib — Two-Hand Cribbage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+<style>
+:root{
+  --felt-1:#0f3a26;
+  --felt-2:#154a30;
+  --wood:#3e2417;
+  --wood-2:#2c1810;
+  --parchment:#f2e9d6;
+  --parchment-dim:#d9cba9;
+  --ink:#211508;
+  --brass:#c9a227;
+  --brass-dim:#8a6f22;
+  --pewter:#a9b2ba;
+  --pewter-dim:#6f767c;
+  --red:#a3372c;
+  --good:#3d7a4d;
+  --warn:#c9a227;
+  --card-num-scale:1;
+}
+/* ---- Theme: Modern — clean, cool, minimal, sans-serif throughout ---- */
+body.theme-modern{
+  --felt-1:#11141b;
+  --felt-2:#1b2029;
+  --wood:#1f242e;
+  --wood-2:#161a22;
+  --parchment:#eef1f6;
+  --parchment-dim:#8d97a8;
+  --ink:#1a1d24;
+  --brass:#5b8def;
+  --brass-dim:#3c5da8;
+  --pewter:#7fdbca;
+  --pewter-dim:#4d9a8c;
+  --red:#e5484d;
+  --good:#3ecf8e;
+  --warn:#5b8def;
+}
+body.theme-modern .disp{font-family:'Inter',sans-serif; font-weight:700; letter-spacing:-.5px;}
+body.theme-modern .card{border-radius:9px; box-shadow:0 2px 6px rgba(0,0,0,.35);}
+body.theme-modern #scoreboard, body.theme-modern .overlay-card{box-shadow:0 4px 14px rgba(0,0,0,.4);}
+body.theme-modern .score-num{text-shadow:none;}
+
+/* ---- Theme: Neon — dark synthwave arcade skin ---- */
+body.theme-neon{
+  --felt-1:#0c0420;
+  --felt-2:#190b3f;
+  --wood:#190b3f;
+  --wood-2:#0c0420;
+  --parchment:#f5ecff;
+  --parchment-dim:#b39be0;
+  --ink:#1a0a2e;
+  --brass:#ff2ecb;
+  --brass-dim:#a01a86;
+  --pewter:#26e5ff;
+  --pewter-dim:#0f96ab;
+  --red:#ff5470;
+  --good:#39ff88;
+  --warn:#ff2ecb;
+}
+body.theme-neon .card{box-shadow:0 0 10px rgba(255,46,203,.35), 0 3px 6px rgba(0,0,0,.5);}
+body.theme-neon #scoreboard{box-shadow:0 0 22px rgba(255,46,203,.22), inset 0 0 0 1px rgba(255,255,255,.06);}
+body.theme-neon .score-block.you .score-num{text-shadow:0 0 20px rgba(255,46,203,.55);}
+body.theme-neon .score-block.ai .score-num{text-shadow:0 0 20px rgba(38,229,255,.55);}
+body.theme-neon .btn-primary{box-shadow:0 4px 0 var(--brass-dim), 0 0 16px rgba(255,46,203,.5);}
+body.theme-neon .score-popup{text-shadow:0 0 10px rgba(255,46,203,.8), 0 2px 4px rgba(0,0,0,.6);}
+body.theme-neon .score-popup.ai{text-shadow:0 0 10px rgba(38,229,255,.8), 0 2px 4px rgba(0,0,0,.6);}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse at 50% -10%, var(--felt-2), var(--felt-1) 60%);
+  color:var(--parchment);
+  font-family:'Inter',system-ui,sans-serif;
+  overflow-x:hidden;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  user-select:none;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+}
+h1,h2,h3,.disp{font-family:'Fraunces',serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ---------- MENU ---------- */
+#menu{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:32px 20px; text-align:center; gap:18px;
+}
+#menu h1{font-size:clamp(32px,9vw,52px); font-weight:700; margin:0; letter-spacing:.5px;
+  color:var(--parchment); text-shadow:0 2px 0 rgba(0,0,0,.35);}
+#menu .sub{color:var(--parchment-dim); font-size:15px; max-width:340px; line-height:1.5; margin:0;}
+
+#mp-screen{
+  display:none; flex:1; flex-direction:column; align-items:center; justify-content:center;
+  padding:32px 20px; text-align:center; gap:18px; min-height:100vh;
+}
+#mp-screen.active{display:flex;}
+#mp-screen .sub{color:var(--parchment-dim); font-size:15px; max-width:340px; line-height:1.5; margin:0;}
+.rule-card{
+  background:rgba(0,0,0,.22); border:1px solid rgba(201,162,39,.3); border-radius:14px;
+  padding:14px 18px; max-width:360px; font-size:13.5px; color:var(--parchment-dim); text-align:left; line-height:1.55;
+}
+.rule-card b{color:var(--brass);}
+.btn{
+  border:none; border-radius:999px; padding:15px 34px; font-size:17px; font-weight:600;
+  cursor:pointer; font-family:'Inter',sans-serif; letter-spacing:.2px;
+  transition:transform .12s ease, box-shadow .12s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:active{transform:scale(.96);}
+.btn-primary{background:linear-gradient(180deg,#dcb53a,var(--brass)); color:#241a02; box-shadow:0 4px 0 var(--brass-dim), 0 8px 18px rgba(0,0,0,.35);}
+.btn-primary:active{box-shadow:0 2px 0 var(--brass-dim);}
+.btn-ghost{background:transparent; color:var(--parchment); border:1.5px solid rgba(242,233,214,.4); padding:10px 22px; font-size:14px;}
+.btn-small{padding:9px 16px; font-size:13px; border-radius:10px;}
+.diff-btn{min-width:76px; flex:1; padding:10px 8px;}
+.diff-btn.active{background:linear-gradient(180deg,#dcb53a,var(--brass)); color:#241a02; border-color:transparent; font-weight:700;}
+.theme-btn{min-width:76px; flex:1; padding:10px 8px;}
+.theme-btn.active{background:linear-gradient(180deg,#dcb53a,var(--brass)); color:#241a02; border-color:transparent; font-weight:700;}
+
+.switch{position:relative; display:inline-block; width:46px; height:27px; flex-shrink:0;}
+.switch input{opacity:0; width:0; height:0;}
+.switch-slider{position:absolute; cursor:pointer; inset:0; background:rgba(242,233,214,.2); border-radius:999px; transition:background .2s ease;}
+.switch-slider::before{content:''; position:absolute; width:21px; height:21px; left:3px; top:3px; background:var(--parchment); border-radius:50%; transition:transform .2s ease; box-shadow:0 1px 3px rgba(0,0,0,.4);}
+.switch input:checked + .switch-slider{background:var(--brass);}
+.switch input:checked + .switch-slider::before{transform:translateX(19px); background:#241a02;}
+
+input[type="range"]{
+  -webkit-appearance:none; appearance:none; width:100%; height:5px; border-radius:999px;
+  background:rgba(242,233,214,.18); outline:none; margin:4px 0;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:22px; height:22px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#f3d97a,var(--brass) 70%);
+  box-shadow:0 2px 4px rgba(0,0,0,.4); cursor:pointer; border:none;
+}
+input[type="range"]::-moz-range-thumb{
+  width:22px; height:22px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#f3d97a,var(--brass) 70%);
+  box-shadow:0 2px 4px rgba(0,0,0,.4); cursor:pointer; border:none;
+}
+
+/* ---------- GAME SHELL ---------- */
+#game{flex:1; display:none; flex-direction:column; min-height:100vh; padding:10px 10px calc(10px + env(safe-area-inset-bottom));}
+#game.active{display:flex;}
+
+/* ---- scoreboard: two large, clear point counters ---- */
+#scoreboard{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:linear-gradient(180deg,var(--wood),var(--wood-2));
+  border-radius:16px; padding:14px 16px; margin-bottom:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.score-block{display:flex; flex-direction:column; align-items:center; flex:1; min-width:0;}
+.score-name{font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:2px;}
+.score-block.you .score-name{color:var(--brass);}
+.score-block.ai .score-name{color:var(--pewter);}
+.score-num{
+  font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:clamp(40px,13vw,58px);
+  line-height:1; letter-spacing:-1px;
+}
+.score-block.you .score-num{color:var(--parchment); text-shadow:0 0 18px rgba(201,162,39,.35);}
+.score-block.ai .score-num{color:var(--parchment); text-shadow:0 0 18px rgba(169,178,186,.3);}
+.dealer-pill{
+  font-size:10.5px; color:var(--parchment-dim); text-transform:uppercase; letter-spacing:.5px;
+  background:rgba(0,0,0,.3); border-radius:999px; padding:4px 10px; white-space:nowrap; flex-shrink:0;
+}
+
+/* ---- toast for scoring events ---- */
+#toast-zone{position:fixed; top:14px; left:0; right:0; display:flex; flex-direction:column; align-items:center; gap:6px; z-index:50; pointer-events:none;}
+.toast{
+  background:rgba(20,12,4,.92); border:1px solid rgba(201,162,39,.5); color:var(--parchment);
+  padding:8px 16px; border-radius:999px; font-size:13.5px; font-weight:600;
+  animation:toastIn .25s ease, toastOut .3s ease 1.3s forwards;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
+}
+.toast.dim{color:var(--parchment-dim); font-weight:500;}
+@keyframes toastIn{from{opacity:0; transform:translateY(-8px) scale(.95);} to{opacity:1; transform:translateY(0) scale(1);}}
+@keyframes toastOut{to{opacity:0; transform:translateY(-6px) scale(.97);}}
+
+/* ---- table felt area ---- */
+#table{
+  flex:1; display:flex; flex-direction:column; justify-content:space-between; gap:8px;
+  background:radial-gradient(ellipse at 50% 30%, var(--felt-2), var(--felt-1) 75%);
+  border-radius:18px; padding:10px; position:relative;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+#score-popup-zone{
+  position:absolute; left:0; right:0; top:38%; height:0; overflow:visible;
+  pointer-events:none; z-index:40;
+}
+.score-popup{
+  position:absolute; bottom:0; left:50%;
+  font-family:'Fraunces',serif; font-weight:700; font-size:27px;
+  color:var(--brass);
+  text-shadow:0 2px 5px rgba(0,0,0,.65), 0 0 14px rgba(201,162,39,.45);
+  animation: popupRise 2.3s cubic-bezier(.16,.7,.3,1) forwards;
+  white-space:nowrap;
+}
+.score-popup.ai{
+  color:var(--pewter);
+  text-shadow:0 2px 5px rgba(0,0,0,.65), 0 0 14px rgba(169,178,186,.45);
+}
+@keyframes popupRise{
+  0%{   opacity:0;   transform: translate(-50%, 14px) scale(.6) rotate(var(--rot,0deg)); }
+  10%{  opacity:1;   transform: translate(-50%, -8px) scale(1.2) rotate(var(--rot,0deg)); }
+  22%{  opacity:1;   transform: translate(-50%, -16px) scale(1) rotate(var(--rot,0deg)); }
+  80%{  opacity:1; }
+  100%{ opacity:0;   transform: translate(-50%, -104px) scale(.92) rotate(var(--rot,0deg)); }
+}
+#status-line{text-align:center; font-size:13.5px; color:var(--parchment); min-height:18px; font-weight:500; padding-top:2px;}
+#count-banner{
+  display:none; text-align:center; font-size:14.5px; font-weight:600; color:var(--brass);
+  background:rgba(0,0,0,.3); border:1px solid rgba(201,162,39,.4); border-radius:10px;
+  margin:6px 8px 0; padding:8px 12px;
+}
+#count-banner.show{display:block;}
+#status-line b{color:var(--brass);}
+
+#ai-row{display:flex; justify-content:center; gap:6px; min-height:58px; align-items:center;}
+#crib-cut-row{display:flex; justify-content:center; align-items:center; gap:26px; min-height:74px;}
+#pegging-pile{display:flex; justify-content:center; gap:6px; flex-wrap:wrap; min-height:98px; align-items:center; padding:4px 4px;}
+#count-badge{
+  font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; color:var(--brass);
+  background:rgba(0,0,0,.35); border-radius:8px; padding:4px 10px; position:absolute; top:6px; right:12px;
+}
+.crib-stack, .cut-slot{display:flex; flex-direction:column; align-items:center; gap:4px;}
+.crib-stack .lbl, .cut-slot .lbl, .lbl{font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--parchment-dim);}
+.mini-crib{width:36px; height:50px; border-radius:5px; background:linear-gradient(135deg,#8a2f2f,#5c1c1c); border:1.5px solid rgba(242,233,214,.25); box-shadow:0 2px 5px rgba(0,0,0,.4); position:relative;}
+.mini-crib::after{content:'✦'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(242,233,214,.5); font-size:14px;}
+
+/* ---- cards ---- */
+.card{
+  width:52px; height:74px; border-radius:7px; background:var(--parchment);
+  display:flex; flex-direction:column; justify-content:space-between; padding:4px 5px;
+  box-shadow:0 3px 6px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.06);
+  font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--ink); font-size:calc(18px * var(--card-num-scale));
+  position:relative; transition:transform .15s ease, box-shadow .15s ease, opacity .2s ease;
+  flex-shrink:0;
+}
+.card .rk{line-height:1;}
+.card .sm{font-size:calc(22px * var(--card-num-scale)); text-align:center; line-height:1;}
+.card.red{color:var(--red);}
+.card.back{
+  background:repeating-linear-gradient(45deg, var(--wood), var(--wood) 4px, var(--wood-2) 4px, var(--wood-2) 8px);
+  border:1.5px solid rgba(201,162,39,.5);
+}
+.card.small{width:38px; height:54px; font-size:calc(14px * var(--card-num-scale)); padding:3px 4px;}
+.card.small .sm{font-size:calc(17px * var(--card-num-scale));}
+.card.big{width:64px; height:90px; font-size:calc(21px * var(--card-num-scale));}
+.card.big .sm{font-size:calc(28px * var(--card-num-scale));}
+.card.playedmark{outline:2px solid rgba(255,255,255,.15);}
+
+@keyframes dealIn{from{opacity:0; transform:translateY(-16px) scale(.85);} to{opacity:1; transform:translateY(0) scale(1);}}
+.card.deal{animation:dealIn .28s ease backwards;}
+@keyframes flip{from{transform:rotateY(90deg);} to{transform:rotateY(0);}}
+.card.flip{animation:flip .28s ease;}
+@keyframes popScore{0%{transform:scale(1);} 40%{transform:scale(1.12);} 100%{transform:scale(1);}}
+.card.pop{animation:popScore .35s ease;}
+
+/* ---- hand row ---- */
+#hand-row{display:flex; justify-content:center; align-items:flex-end; gap:4px; padding:6px 4px 4px; min-height:96px; flex-wrap:nowrap; width:100%;}
+#hand-row .card{flex:0 0 auto;}
+#hand-row .card.selected{z-index:200 !important;}
+.card.selectable{cursor:pointer;}
+.card.selected{transform:translateY(-14px); box-shadow:0 0 0 3px var(--brass), 0 6px 10px rgba(0,0,0,.4);}
+.card.playable{box-shadow:0 0 0 3px rgba(61,122,77,.85), 0 3px 6px rgba(0,0,0,.35);}
+.card.unplayable{opacity:.4; filter:grayscale(.4);}
+.card.disabled{opacity:.35; pointer-events:none;}
+
+/* ---- discard action bar ---- */
+#action-bar{display:flex; justify-content:center; gap:10px; padding:8px 4px 2px; min-height:46px;}
+
+/* ---- self-count keypad ---- */
+.keypad-box{
+  width:100%; max-width:280px; margin:0 auto;
+  background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.35); border-radius:14px;
+  padding:12px 14px 14px;
+}
+.keypad-prompt{font-size:13px; color:var(--parchment-dim); text-align:center; margin-bottom:8px;}
+.keypad-prompt b{color:var(--parchment); font-weight:600;}
+.keypad-display{
+  font-family:'IBM Plex Mono',monospace; font-size:32px; font-weight:600; color:var(--brass);
+  text-align:center; margin-bottom:10px; min-height:38px;
+}
+.keypad-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+.keypad-key{
+  border:none; border-radius:10px; background:rgba(242,233,214,.1); color:var(--parchment);
+  font-family:'IBM Plex Mono',monospace; font-size:19px; font-weight:600; padding:13px 0;
+  cursor:pointer; transition:transform .1s ease, background .1s ease;
+}
+.keypad-key:active{transform:scale(.94); background:rgba(242,233,214,.2);}
+.keypad-key.keypad-back{font-size:15px; color:var(--parchment-dim);}
+.keypad-key.keypad-submit{background:linear-gradient(180deg,#dcb53a,var(--brass)); color:#241a02;}
+.keypad-feedback{
+  text-align:center; font-size:15px; font-weight:600; padding:10px 14px; border-radius:10px;
+  background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.35);
+}
+.keypad-feedback.correct{color:var(--good); border-color:rgba(61,122,77,.5);}
+.keypad-feedback.incorrect{color:var(--warn);}
+
+/* ---- hint panel ---- */
+#hint-panel{
+  background:rgba(0,0,0,.3); border:1px solid rgba(201,162,39,.35); border-radius:14px;
+  padding:12px 14px; margin:6px 4px; font-size:13px; line-height:1.6; display:none;
+}
+#hint-panel.show{display:block;}
+#hint-panel h4{margin:0 0 6px; font-size:12px; letter-spacing:.5px; text-transform:uppercase; color:var(--brass);}
+#hint-panel .row{display:flex; justify-content:space-between; margin-bottom:2px;}
+#hint-panel .row .k{color:var(--parchment-dim);}
+#hint-panel .row .v{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+#hint-cuts{display:grid; grid-template-columns:repeat(13,1fr); gap:2px; margin-top:8px;}
+.cutcell{aspect-ratio:1; border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:9px; font-family:'IBM Plex Mono',monospace; font-weight:600;}
+
+/* ---- overlay for gameover ---- */
+#overlay{position:fixed; inset:0; background:rgba(8,5,2,.86); display:none; align-items:center; justify-content:center; z-index:60; padding:24px;}
+#overlay.show{display:flex;}
+.overlay-card{background:var(--wood); border-radius:18px; padding:28px 26px; text-align:center; max-width:340px; box-shadow:0 12px 40px rgba(0,0,0,.5); border:1px solid rgba(201,162,39,.4);}
+.overlay-card h2{margin:0 0 8px; font-size:26px;}
+.overlay-card p{color:var(--parchment-dim); font-size:14px; margin:0 0 18px;}
+.ov-recap{
+  background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.3); border-radius:12px;
+  padding:10px 14px; margin:0 0 18px; font-size:13px; color:var(--parchment-dim); line-height:1.5;
+}
+.ov-recap b{color:var(--brass);}
+.ov-recap:empty{display:none; margin:0;}
+
+#stats-overlay{position:fixed; inset:0; background:rgba(8,5,2,.86); display:none; align-items:center; justify-content:center; z-index:65; padding:24px;}
+#stats-overlay.show{display:flex;}
+.stat-row{
+  display:flex; justify-content:space-between; gap:10px; padding:7px 0;
+  border-bottom:1px solid rgba(242,233,214,.1); font-size:13.5px; text-align:left;
+}
+.stat-row span:last-child{font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--parchment);}
+.stat-row.dim{border-bottom:none; opacity:.55; font-size:11.5px; padding-top:10px;}
+.stat-row.dim span:last-child{font-weight:500;}
+.stats-note{font-size:11px; color:var(--parchment-dim); margin:12px 0 16px; line-height:1.5;}
+
+/* small screens */
+@media (max-width:380px){
+  .card{width:44px; height:62px; font-size:calc(15px * var(--card-num-scale));}
+  .card .sm{font-size:calc(16px * var(--card-num-scale));}
+  .card.big{width:56px; height:78px;}
+}
+.spacer{flex:1;}
+.hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div id="toast-zone"></div>
+
+<!-- MENU -->
+<div id="menu">
+  <h1 class="disp">Sevens&nbsp;Crib</h1>
+  <p class="sub">Two-hand cribbage, dealt big. 7 cards each, 1 straight to the crib, then everyone throws 2. Race to 121.</p>
+  <div class="rule-card">
+    <b>The twist:</b> instead of dealing 6 and throwing 2, you're dealt <b>7</b> cards and <b>1</b> goes face-down to the crib immediately. Each player then throws <b>2</b> more — so hands and the crib both land at 5 cards + the cut. Bigger hands, bigger scores, faster games.
+  </div>
+  <div class="rule-card">
+    <b style="display:block; margin-bottom:8px;">Bot difficulty</b>
+    <div id="diff-select" style="display:flex; gap:8px; justify-content:center;">
+      <button class="btn btn-small btn-ghost diff-btn" data-diff="easy">Easy</button>
+      <button class="btn btn-small btn-ghost diff-btn" data-diff="medium">Medium</button>
+      <button class="btn btn-small btn-ghost diff-btn" data-diff="hard">Hard</button>
+    </div>
+    <p id="diff-desc" style="margin:10px 0 0; font-size:12.5px; color:var(--parchment-dim); line-height:1.5;"></p>
+  </div>
+  <div class="rule-card">
+    <b style="display:block; margin-bottom:8px;">Appearance</b>
+    <div id="theme-select" style="display:flex; gap:8px; justify-content:center;">
+      <button class="btn btn-small btn-ghost theme-btn" data-theme="classic">Classic</button>
+      <button class="btn btn-small btn-ghost theme-btn" data-theme="modern">Modern</button>
+      <button class="btn btn-small btn-ghost theme-btn" data-theme="neon">Neon</button>
+    </div>
+  </div>
+  <div class="rule-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left;">
+      <div>
+        <b style="display:block;">Count your own hand</b>
+        <span style="font-size:12px; color:var(--parchment-dim);">Type the score in yourself before it's revealed — good practice.</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggle-selfcount">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+  </div>
+  <div class="rule-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+      <b>Card number size</b>
+      <span id="cardsize-val" class="mono" style="font-size:12px; color:var(--parchment-dim);">100%</span>
+    </div>
+    <input type="range" id="slider-cardsize" min="80" max="150" step="5" value="100">
+  </div>
+  <button class="btn btn-primary" id="btn-play">Deal Me In</button>
+  <button class="btn btn-ghost" id="btn-mp">Play a Friend Online</button>
+  <button class="btn btn-ghost" id="btn-howto">How pegging works</button>
+  <button class="btn btn-ghost" id="btn-menu-stats">View Lifetime Stats</button>
+</div>
+
+<!-- MULTIPLAYER SETUP -->
+<div id="mp-screen">
+  <h1 class="disp" style="font-size:30px;">Play a Friend</h1>
+  <div class="rule-card" style="max-width:320px;">
+    Peer-to-peer over your browser — no account needed. One of you creates a room and shares the code; the other joins with it.
+  </div>
+  <div id="mp-choice" style="display:flex; flex-direction:column; gap:10px; align-items:center;">
+    <button class="btn btn-primary" id="btn-mp-create">Create Room</button>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <input id="mp-code-input" maxlength="5" placeholder="CODE" style="width:110px; text-align:center; letter-spacing:3px; text-transform:uppercase; font-family:'IBM Plex Mono',monospace; font-size:16px; font-weight:600; padding:12px 8px; border-radius:10px; border:1.5px solid rgba(242,233,214,.35); background:rgba(0,0,0,.25); color:var(--parchment);">
+      <button class="btn btn-primary btn-small" id="btn-mp-join">Join</button>
+    </div>
+  </div>
+  <div id="mp-status" style="display:none; flex-direction:column; align-items:center; gap:12px;">
+    <p id="mp-status-text" class="sub" style="margin:0;">Connecting...</p>
+    <div id="mp-code-display" style="display:none; font-family:'IBM Plex Mono',monospace; font-size:34px; font-weight:700; letter-spacing:6px; color:var(--brass); background:rgba(0,0,0,.3); border:1px solid rgba(201,162,39,.4); border-radius:14px; padding:14px 26px;"></div>
+  </div>
+  <button class="btn btn-ghost" id="btn-mp-back">Back</button>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div id="scoreboard">
+    <div class="score-block you">
+      <span class="score-name">You</span>
+      <span class="score-num" id="score-you">0</span>
+    </div>
+    <div id="dealer-tag" class="dealer-pill">deal: —</div>
+    <div class="score-block ai">
+      <span class="score-name" id="score-ai-label">Bot</span>
+      <span class="score-num" id="score-ai">0</span>
+    </div>
+  </div>
+
+  <div id="table">
+    <div id="count-badge" class="hidden">0</div>
+    <div id="score-popup-zone"></div>
+    <div id="ai-row"></div>
+    <div id="status-line">Welcome to the table.</div>
+    <div id="count-banner"></div>
+    <div id="crib-cut-row">
+      <div class="crib-stack"><span class="lbl">Crib</span><div class="mini-crib" id="crib-visual"></div></div>
+      <div class="cut-slot"><span class="lbl">Cut</span><div id="cut-visual"></div></div>
+    </div>
+    <div id="pegging-pile"></div>
+    <div class="spacer"></div>
+    <div id="hint-panel"></div>
+    <div id="action-bar"></div>
+    <div id="hand-row"></div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="overlay-card">
+    <h2 class="disp" id="ov-title">Game Over</h2>
+    <p id="ov-sub"></p>
+    <div id="ov-recap" class="ov-recap"></div>
+    <button class="btn btn-primary" id="btn-again">Play Again</button>
+    <button class="btn btn-ghost btn-small" id="btn-view-stats" style="margin-top:10px;">View Lifetime Stats</button>
+  </div>
+</div>
+
+<div id="stats-overlay">
+  <div class="overlay-card">
+    <h2 class="disp" style="font-size:24px;">Lifetime Stats</h2>
+    <div id="stats-body"></div>
+    <p class="stats-note">Saved in this browser only — clearing site data, switching browsers, or a new device will reset it.</p>
+    <button class="btn btn-primary btn-small" id="btn-stats-close">Close</button>
+    <button class="btn btn-ghost btn-small" id="btn-stats-reset" style="margin-top:8px;">Reset Stats</button>
+  </div>
+</div>
+
+<script>
+/* ============================= CORE MODEL ============================= */
+const SUITS = ['S','H','D','C'];
+const SUIT_SYM = {S:'♠',H:'♥',D:'♦',C:'♣'};
+const RED_SUITS = ['H','D'];
+const RANK_LABEL = {1:'A',11:'J',12:'Q',13:'K'};
+function rankLabel(r){ return RANK_LABEL[r] || String(r); }
+function cardValue(rank){ return Math.min(rank,10); }
+function cardId(c){ return c.rank+c.suit; }
+
+function freshDeck(){
+  const d = [];
+  for (const s of SUITS) for (let r=1;r<=13;r++) d.push({rank:r, suit:s});
+  return d;
+}
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+/* Generalized scorer: works for 4-card or 5-card hands (our variant uses 5) */
+function scoreHand(handCards, cut, isCrib){
+  const all = [...handCards, cut];
+  const breakdown = [];
+  let total = 0;
+  const n = all.length;
+
+  let fifteens = 0;
+  for (let mask=1; mask<(1<<n); mask++){
+    let bits=0, sum=0;
+    for (let i=0;i<n;i++){ if (mask & (1<<i)){ bits++; sum+=cardValue(all[i].rank); } }
+    if (bits>=2 && sum===15) fifteens++;
+  }
+  if (fifteens>0){ total += fifteens*2; breakdown.push([`${fifteens} fifteen${fifteens>1?'s':''}`, fifteens*2]); }
+
+  const rankCount = {};
+  for (const c of all) rankCount[c.rank] = (rankCount[c.rank]||0)+1;
+  let pairPts = 0;
+  for (const r in rankCount){ const f=rankCount[r]; if (f>=2) pairPts += f*(f-1); }
+  if (pairPts>0){ total += pairPts; breakdown.push(['pairs', pairPts]); }
+
+  const ranksPresent = Object.keys(rankCount).map(Number).sort((a,b)=>a-b);
+  let runPts = 0, i=0;
+  while (i<ranksPresent.length){
+    let j=i;
+    while (j+1<ranksPresent.length && ranksPresent[j+1]===ranksPresent[j]+1) j++;
+    const runLen = j-i+1;
+    if (runLen>=3){
+      let mult=1;
+      for (let k=i;k<=j;k++) mult*=rankCount[ranksPresent[k]];
+      runPts += runLen*mult;
+    }
+    i=j+1;
+  }
+  if (runPts>0){ total += runPts; breakdown.push(['runs', runPts]); }
+
+  const suits = handCards.map(c=>c.suit);
+  const sameSuitHand = suits.every(s=>s===suits[0]);
+  if (sameSuitHand){
+    if (isCrib){
+      if (cut.suit===suits[0]){ total += handCards.length+1; breakdown.push(['flush', handCards.length+1]); }
+    } else {
+      let f = handCards.length;
+      if (cut.suit===suits[0]) f+=1;
+      total += f; breakdown.push(['flush', f]);
+    }
+  }
+
+  const nobs = handCards.some(c=>c.rank===11 && c.suit===cut.suit);
+  if (nobs){ total += 1; breakdown.push(['nobs',1]); }
+
+  return { total, breakdown };
+}
+
+function combinations(arr, k){
+  const res=[];
+  function rec(start, chosen){
+    if (chosen.length===k){ res.push(chosen.slice()); return; }
+    for (let i=start;i<arr.length;i++){ chosen.push(arr[i]); rec(i+1,chosen); chosen.pop(); }
+  }
+  rec(0,[]);
+  return res;
+}
+
+/* Exact hand EV over all unseen cards */
+function handEV(fiveCards, unseen){
+  let sum=0;
+  for (const cut of unseen) sum += scoreHand(fiveCards, cut, false).total;
+  return sum/unseen.length;
+}
+
+/* Monte Carlo crib EV: my 2 discards + 1 auto-crib-card + opp 2 discards, cut all sampled from unseen */
+function cribEVApprox(myTwo, unseen, samples=260){
+  let sum=0;
+  const pool = unseen;
+  for (let s=0;s<samples;s++){
+    // sample 4 distinct cards from pool without replacement (cut, auto, opp1, opp2)
+    const idxs = new Set();
+    while (idxs.size<4){ idxs.add(Math.floor(Math.random()*pool.length)); }
+    const picked = [...idxs].map(i=>pool[i]);
+    const cut = picked[0];
+    const cribExtra = [picked[1], picked[2], picked[3]];
+    const cribCards = [...myTwo, ...cribExtra];
+    sum += scoreHand(cribCards, cut, true).total;
+  }
+  return sum/samples;
+}
+
+/* Full discard analysis for a 7-card hand */
+function analyzeDiscards(sevenCards, unseen, isDealer){
+  const idxCombos = combinations([0,1,2,3,4,5,6], 2);
+  const results = [];
+  for (const pair of idxCombos){
+    const discardIdx = new Set(pair);
+    const keep = sevenCards.filter((_,i)=>!discardIdx.has(i));
+    const discard = pair.map(i=>sevenCards[i]);
+    const hEV = handEV(keep, unseen);
+    const cEV = cribEVApprox(discard, unseen, 160);
+    const combined = isDealer ? hEV + cEV : hEV - cEV;
+    results.push({ discard, keep, handEV:hEV, cribEV:cEV, combined });
+  }
+  results.sort((a,b)=>b.combined-a.combined);
+  return results;
+}
+
+/* ============================= GAME STATE ============================= */
+let G = null;
+let DIFFICULTY = 'medium';
+const DIFF_DESC = {
+  easy: "Rookie: throws to the crib almost at random and mostly plays blind while pegging, only sometimes noticing a free 15 or 31. Leaves the classic traps (5s and 21s) wide open.",
+  medium: "Club Player: picks its discard from its 5 best options rather than always the single best. While pegging it always grabs an obvious 15, 31, or pair, and dodges leaving the count at 5 or 21 — but doesn't think further ahead than that.",
+  hard: "Sharp: always throws its mathematically best discard (full 21-combo EV search, same engine as your hint feature). While pegging it takes every scoring chance and, when nothing scores, plays a one-move-lookahead to pick whichever legal card leaves you the fewest ways to score next."
+};
+const SETTINGS = { theme:'classic', selfCount:false, cardNumberScale:1 };
+
+/* ============================= LIFETIME STATS (persisted in localStorage) =============================
+   Lives in this browser only, tied to whatever URL this file is hosted at — clearing site data or
+   switching browsers/devices will reset it, since there's no account/server behind it. */
+const STATS_KEY = 'sevensCrib_lifetimeStats_v1';
+function loadLifetimeStats(){
+  try {
+    const raw = localStorage.getItem(STATS_KEY);
+    if (raw) return Object.assign(defaultLifetimeStats(), JSON.parse(raw));
+  } catch(e){ /* storage unavailable — fall through to defaults, kept in memory only for this session */ }
+  return defaultLifetimeStats();
+}
+function defaultLifetimeStats(){
+  return {
+    gamesPlayed:0, wins:0, losses:0,
+    handsPlayed:0, totalPointsPegged:0,
+    totalDiscards:0, optimalDiscards:0, pointsMissedLifetime:0,
+    lastPlayed:null
+  };
+}
+let LIFETIME = loadLifetimeStats();
+function saveLifetimeStats(){
+  try { localStorage.setItem(STATS_KEY, JSON.stringify(LIFETIME)); } catch(e){ /* storage unavailable, session-only */ }
+}
+function recordGameToLifetime(youWon){
+  LIFETIME.gamesPlayed += 1;
+  if (youWon) LIFETIME.wins += 1; else LIFETIME.losses += 1;
+  LIFETIME.handsPlayed += (G.handsThisGame||0);
+  LIFETIME.totalPointsPegged += (G.peggedPointsYou||0);
+  LIFETIME.totalDiscards += (G.discardCount||0);
+  LIFETIME.optimalDiscards += (G.optimalDiscardCount||0);
+  LIFETIME.pointsMissedLifetime += (G.missedPoints||0);
+  LIFETIME.lastPlayed = new Date().toISOString();
+  saveLifetimeStats();
+}
+function renderStatsBody(){
+  const s = LIFETIME;
+  const winPct = s.gamesPlayed ? Math.round(100*s.wins/s.gamesPlayed) : 0;
+  const discardPct = s.totalDiscards ? Math.round(100*s.optimalDiscards/s.totalDiscards) : 0;
+  const lastPlayed = s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString() : '—';
+  document.getElementById('stats-body').innerHTML = `
+    <div class="stat-row"><span>Games played</span><span>${s.gamesPlayed}</span></div>
+    <div class="stat-row"><span>Record</span><span>${s.wins}-${s.losses} (${winPct}% wins)</span></div>
+    <div class="stat-row"><span>Hands played</span><span>${s.handsPlayed}</span></div>
+    <div class="stat-row"><span>Total points pegged</span><span>${s.totalPointsPegged}</span></div>
+    <div class="stat-row"><span>Discard accuracy</span><span>${s.totalDiscards? discardPct+'% ('+s.optimalDiscards+'/'+s.totalDiscards+')' : '—'}</span></div>
+    <div class="stat-row"><span>Lifetime points missed</span><span>${s.pointsMissedLifetime.toFixed(1)}</span></div>
+    <div class="stat-row dim"><span>Last played</span><span>${lastPlayed}</span></div>
+  `;
+}
+
+
+/* ============================= MULTIPLAYER (PeerJS, peer-to-peer) ============================= */
+const MP = { peer:null, conn:null, isHost:false, roomCode:null, connected:false };
+const ROOM_PREFIX = 'sevenscrib7-';
+
+function randomRoomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+  let s='';
+  for (let i=0;i<4;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+function mpSend(msg){
+  if (MP.conn && MP.conn.open) MP.conn.send(msg);
+}
+
+function oppName(){ return G && G.mode==='online' ? 'Opponent' : 'Bot'; }
+
+function updateOpponentLabels(){
+  const name = oppName();
+  document.getElementById('score-ai-label').textContent = name;
+}
+
+function mpCreateRoom(){
+  if (typeof Peer === 'undefined'){
+    document.getElementById('mp-status').style.display='flex';
+    document.getElementById('mp-status-text').textContent = 'Multiplayer library failed to load. Check your connection and reload the page.';
+    return;
+  }
+  document.getElementById('mp-choice').style.display='none';
+  const statusBox = document.getElementById('mp-status');
+  statusBox.style.display='flex';
+  document.getElementById('mp-status-text').textContent = 'Opening room...';
+  MP.roomCode = randomRoomCode();
+  MP.isHost = true;
+  MP.peer = new Peer(ROOM_PREFIX+MP.roomCode);
+  MP.peer.on('open', ()=>{
+    document.getElementById('mp-status-text').textContent = 'Share this code with your friend:';
+    const disp = document.getElementById('mp-code-display');
+    disp.style.display='block';
+    disp.textContent = MP.roomCode;
+  });
+  MP.peer.on('connection', conn=>{
+    MP.conn = conn;
+    wireMpConnection();
+  });
+  MP.peer.on('error', err=>{
+    document.getElementById('mp-status-text').textContent = 'Connection error: '+err.type+'. Try again.';
+  });
+}
+
+function mpJoinRoom(code){
+  if (typeof Peer === 'undefined'){
+    document.getElementById('mp-status').style.display='flex';
+    document.getElementById('mp-status-text').textContent = 'Multiplayer library failed to load. Check your connection and reload the page.';
+    return;
+  }
+  code = code.trim().toUpperCase();
+  if (!code) return;
+  document.getElementById('mp-choice').style.display='none';
+  const statusBox = document.getElementById('mp-status');
+  statusBox.style.display='flex';
+  document.getElementById('mp-status-text').textContent = 'Connecting to room '+code+'...';
+  MP.roomCode = code;
+  MP.isHost = false;
+  MP.peer = new Peer();
+  MP.peer.on('open', ()=>{
+    const conn = MP.peer.connect(ROOM_PREFIX+code, {reliable:true});
+    MP.conn = conn;
+    wireMpConnection();
+  });
+  MP.peer.on('error', err=>{
+    document.getElementById('mp-status-text').textContent = 'Could not find that room. Check the code and try again.';
+  });
+}
+
+function wireMpConnection(){
+  MP.conn.on('open', ()=>{
+    MP.connected = true;
+    document.getElementById('mp-status-text').textContent = 'Connected! Starting game...';
+    setTimeout(()=>{
+      document.getElementById('mp-screen').classList.remove('active');
+      document.getElementById('game').classList.add('active');
+      startOnlineGame();
+    }, 700);
+  });
+  MP.conn.on('data', data=>{ mpHandleMessage(data); });
+  MP.conn.on('close', ()=>{
+    MP.connected = false;
+    if (G && G.mode==='online' && G.phase!=='over'){
+      setStatus('Your opponent disconnected.');
+      const bar = document.getElementById('action-bar');
+      bar.innerHTML = `<button class="btn btn-primary" id="btn-mp-disconnected">Back to Menu</button>`;
+      document.getElementById('btn-mp-disconnected').addEventListener('click', ()=>location.reload());
+    }
+  });
+}
+
+function mpHandleMessage(msg){
+  if (!msg || !msg.type) return;
+  if (msg.type==='cutfordeal'){
+    applyRemoteCutForDeal(msg.hostCard, msg.guestCard, msg.hostDeals);
+  } else if (msg.type==='deal'){
+    applyRemoteDeal(msg);
+  } else if (msg.type==='discard'){
+    onRemoteDiscard(msg.cards);
+  } else if (msg.type==='play'){
+    playCard('ai', msg.card);
+  } else if (msg.type==='rematch'){
+    setStatus('Opponent wants a rematch — starting new game.');
+    setTimeout(()=>newGame(), 300);
+  }
+}
+
+/* Guest-side counterpart to startHand's dealing — applies the host's authoritative deal. */
+function applyRemoteDeal(msg){
+  startHand({ yourHand: msg.yourHand, oppHand: msg.oppHand, cribCard: msg.cribCard, cutCard: msg.cutCard });
+}
+
+function newGame(){
+  const mode = MP.connected ? 'online' : 'ai';
+  G = {
+    scoreYou:0, scoreAI:0,
+    dealerIsYou: false,
+    phase:'idle',
+    mode: mode,
+    you:[], ai:[], crib:[], cut:null, deck:[], _pendingCut:null,
+    discardYou:[], selected:[],
+    pegPile:[], pegCount:0, pegGoCount:0,
+    pegHandYou:[], pegHandAI:[], playedYou:[], playedAI:[],
+    lastPlayer:null, cannotYou:false, cannotAI:false,
+    turn:null, // 'you' | 'ai'
+    handAnalysis:null, chosenDiscardEV:null,
+    firstHandStarter:null,
+    myDiscardDone:false, oppDiscardDone:false, wantsToAdvance:false,
+    // per-game tracking for the end-of-game recap + lifetime stats
+    missedPoints:0, discardCount:0, optimalDiscardCount:0,
+    peggedPointsYou:0, handsThisGame:0
+  };
+  updateScoreUI(true);
+  updateOpponentLabels();
+  document.getElementById('dealer-tag').textContent = 'deal: —';
+  cutForDeal();
+}
+
+/* Called on the guest's client only, when connected — waits for the host to drive things. */
+function startOnlineGame(){
+  updateOpponentLabels();
+  if (MP.isHost){
+    newGame();
+  } else {
+    G = {
+      scoreYou:0, scoreAI:0, dealerIsYou:false, phase:'waiting', mode:'online',
+      you:[], ai:[], crib:[], cut:null, deck:[], _pendingCut:null,
+      discardYou:[], selected:[], pegPile:[], pegCount:0,
+      pegHandYou:[], pegHandAI:[], playedYou:[], playedAI:[],
+      lastPlayer:null, turn:null, handAnalysis:null, chosenDiscardEV:null,
+      myDiscardDone:false, oppDiscardDone:false, wantsToAdvance:false,
+      missedPoints:0, discardCount:0, optimalDiscardCount:0,
+      peggedPointsYou:0, handsThisGame:0
+    };
+    updateScoreUI(true);
+    document.getElementById('dealer-tag').textContent = 'deal: —';
+    setStatus('Connected. Waiting for the host to cut for deal...');
+  }
+}
+
+/* ---------------- Cut for deal (once, at the start of a game) ---------------- */
+function cutForDeal(){
+  G.phase = 'cutfordeal';
+  document.getElementById('hint-panel').classList.remove('show');
+  document.getElementById('hint-panel').innerHTML='';
+  document.getElementById('action-bar').innerHTML='';
+  document.getElementById('count-badge').classList.add('hidden');
+  document.getElementById('crib-cut-row').innerHTML='';
+  document.getElementById('pegging-pile').innerHTML='';
+  setStatus('Cutting for deal — low card deals first...');
+
+  let deck = shuffle(freshDeck());
+  let a = deck.pop(), b = deck.pop();
+  while (a.rank === b.rank){
+    deck = shuffle(freshDeck());
+    a = deck.pop(); b = deck.pop();
+  }
+
+  document.getElementById('ai-row').innerHTML =
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><span class="lbl">${oppName()}'s Cut</span>${cardFace(b,'flip big')}</div>`;
+  document.getElementById('hand-row').innerHTML =
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><span class="lbl">Your Cut</span>${cardFace(a,'flip big')}</div>`;
+
+  const youLower = a.rank < b.rank;
+  G.dealerIsYou = youLower;
+
+  if (G.mode==='online' && MP.isHost){
+    mpSend({type:'cutfordeal', hostCard:a, guestCard:b, hostDeals:youLower});
+  }
+
+  setTimeout(()=>{
+    setStatus(`You cut <b>${rankLabel(a.rank)}${SUIT_SYM[a.suit]}</b>, ${oppName()} cuts <b>${rankLabel(b.rank)}${SUIT_SYM[b.suit]}</b>. ${youLower?'Lower card — you deal first.':'Lower card — '+oppName()+' deals first.'}`);
+    document.getElementById('dealer-tag').textContent = 'deal: ' + (G.dealerIsYou?'you':oppName().toLowerCase());
+    setTimeout(()=>{
+      document.getElementById('crib-cut-row').innerHTML =
+        `<div class="crib-stack"><span class="lbl">Crib</span><div class="mini-crib" id="crib-visual"></div></div>
+         <div class="cut-slot"><span class="lbl">Cut</span><div id="cut-visual"></div></div>`;
+      startHand();
+    }, 1700);
+  }, 900);
+}
+
+/* Guest-side counterpart to cutForDeal — applies the host's authoritative cut result. */
+function applyRemoteCutForDeal(hostCard, guestCard, hostDeals){
+  G.phase = 'cutfordeal';
+  document.getElementById('hint-panel').classList.remove('show');
+  document.getElementById('hint-panel').innerHTML='';
+  document.getElementById('action-bar').innerHTML='';
+  document.getElementById('count-badge').classList.add('hidden');
+  document.getElementById('crib-cut-row').innerHTML='';
+  document.getElementById('pegging-pile').innerHTML='';
+  setStatus('Cutting for deal — low card deals first...');
+
+  document.getElementById('ai-row').innerHTML =
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><span class="lbl">Opponent's Cut</span>${cardFace(hostCard,'flip big')}</div>`;
+  document.getElementById('hand-row').innerHTML =
+    `<div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><span class="lbl">Your Cut</span>${cardFace(guestCard,'flip big')}</div>`;
+
+  G.dealerIsYou = !hostDeals;
+
+  setTimeout(()=>{
+    setStatus(`You cut <b>${rankLabel(guestCard.rank)}${SUIT_SYM[guestCard.suit]}</b>, Opponent cuts <b>${rankLabel(hostCard.rank)}${SUIT_SYM[hostCard.suit]}</b>. ${G.dealerIsYou?'Lower card — you deal first.':'Lower card — Opponent deals first.'}`);
+    document.getElementById('dealer-tag').textContent = 'deal: ' + (G.dealerIsYou?'you':'opponent');
+    setTimeout(()=>{
+      document.getElementById('crib-cut-row').innerHTML =
+        `<div class="crib-stack"><span class="lbl">Crib</span><div class="mini-crib" id="crib-visual"></div></div>
+         <div class="cut-slot"><span class="lbl">Cut</span><div id="cut-visual"></div></div>`;
+      setStatus('Waiting for the deal...');
+    }, 1700);
+  }, 900);
+}
+
+function startHand(remoteDeal){
+  let pendingCut;
+  if (remoteDeal){
+    G.you = remoteDeal.yourHand;
+    G.ai = remoteDeal.oppHand;
+    G.crib = [remoteDeal.cribCard];
+    pendingCut = remoteDeal.cutCard;
+  } else {
+    G.deck = shuffle(freshDeck());
+    G.you = G.deck.splice(0,7).sort((a,b)=>a.rank-b.rank);
+    G.ai = G.deck.splice(0,7);
+    G.crib = G.deck.splice(0,1); // one dealt straight to crib
+    if (G.mode==='online'){
+      pendingCut = G.deck.pop(); // decided now so both peers can hold it before it's revealed
+    }
+  }
+  G._pendingCut = pendingCut || null;
+  G.cut = null;
+  G.selected = [];
+  G.pegPile=[]; G.pegCount=0;
+  G.playedYou=[]; G.playedAI=[];
+  G.handAnalysis=null; G.chosenDiscardEV=null;
+  G.myDiscardDone=false; G.oppDiscardDone=false; G.wantsToAdvance=false;
+  document.getElementById('hint-panel').classList.remove('show');
+  document.getElementById('hint-panel').innerHTML='';
+  document.getElementById('action-bar').innerHTML='';
+  document.getElementById('count-badge').classList.add('hidden');
+  document.getElementById('count-banner').classList.remove('show');
+  document.getElementById('count-banner').textContent='';
+  // Fully reset the crib/cut display — the crib may still be showing last hand's
+  // revealed cards from the counting phase, so rebuild the placeholder fresh.
+  document.getElementById('crib-cut-row').innerHTML =
+    `<div class="crib-stack"><span class="lbl">Crib</span><div class="mini-crib" id="crib-visual"></div></div>
+     <div class="cut-slot"><span class="lbl">Cut</span><div id="cut-visual"></div></div>`;
+  G.phase='discard';
+  setStatus(`Dealer is <b>${G.dealerIsYou?'you':(G.mode==='online'?'your opponent':'the bot')}</b>. Choose 2 cards to send to the crib.`);
+  renderAll();
+
+  if (G.mode==='online'){
+    if (MP.isHost && !remoteDeal){
+      mpSend({type:'deal', yourHand:G.ai, oppHand:G.you, cribCard:G.crib[0], cutCard:G._pendingCut});
+    }
+  } else {
+    // AI discards immediately in background
+    aiDiscard();
+  }
+}
+
+/* ---------------- AI discard (heuristic + same EV engine, difficulty-scaled) ---------------- */
+function aiDiscard(){
+  const unseenForAI = freshDeck().filter(c => !G.ai.some(h=>cardId(h)===cardId(c)) && !G.crib.some(h=>cardId(h)===cardId(c)));
+  const analysis = analyzeDiscards(G.ai, unseenForAI, !G.dealerIsYou);
+  let pick;
+  if (DIFFICULTY==='hard'){
+    pick = analysis[0]; // always the mathematically best throw
+  } else if (DIFFICULTY==='medium'){
+    const top = analysis.slice(0, Math.min(5, analysis.length));
+    pick = top[Math.floor(Math.random()*top.length)];
+  } else { // easy
+    pick = analysis[Math.floor(Math.random()*analysis.length)]; // ignores EV entirely
+  }
+  G._aiDiscardPair = pick.discard;
+}
+
+function commitAIDiscard(){
+  const pair = G._aiDiscardPair;
+  G.ai = G.ai.filter(c => !pair.some(p=>cardId(p)===cardId(c)));
+  G.crib.push(...pair);
+}
+
+/* ============================= RENDER HELPERS ============================= */
+function cardFace(c, extraClass=''){
+  const isRed = RED_SUITS.includes(c.suit);
+  return `<div class="card ${isRed?'red':''} ${extraClass}" data-id="${cardId(c)}">
+    <div class="rk">${rankLabel(c.rank)}</div>
+    <div class="sm">${SUIT_SYM[c.suit]}</div>
+  </div>`;
+}
+function cardBack(extraClass=''){
+  return `<div class="card back ${extraClass}"></div>`;
+}
+
+function toast(text, dim=false){
+  const zone = document.getElementById('toast-zone');
+  const el = document.createElement('div');
+  el.className = 'toast'+(dim?' dim':'');
+  el.textContent = text;
+  zone.appendChild(el);
+  setTimeout(()=>el.remove(), 1650);
+}
+
+/* Fortnite-style floating damage numbers, but for cribbage points. */
+function spawnScorePopup(who, pts){
+  const zone = document.getElementById('score-popup-zone');
+  const el = document.createElement('div');
+  el.className = 'score-popup ' + (who==='you' ? 'you' : 'ai');
+  el.textContent = '+'+pts;
+  const jitterX = (Math.random()*70-35);
+  el.style.left = `calc(50% + ${jitterX}px)`;
+  el.style.setProperty('--rot', (Math.random()*18-9)+'deg');
+  zone.appendChild(el);
+  setTimeout(()=>el.remove(), 2350);
+}
+
+function setStatus(html){ document.getElementById('status-line').innerHTML = html; }
+
+function updateScoreUI(instant){
+  document.getElementById('score-you').textContent = G.scoreYou;
+  document.getElementById('score-ai').textContent = G.scoreAI;
+}
+
+/* ============================= MAIN RENDER ============================= */
+function renderAll(){
+  renderAIRow();
+  renderCribCut();
+  renderHand();
+  renderActionBar();
+  renderPeggingPile();
+  updateScoreUI();
+}
+
+function renderAIRow(){
+  const row = document.getElementById('ai-row');
+  if (G.phase==='discard' || G.phase==='cut'){
+    row.innerHTML = G.ai.map(()=>cardBack()).join('');
+  } else if (G.phase==='peg'){
+    row.innerHTML = G.pegHandAI.map(c => G.playedAI.some(p=>cardId(p)===cardId(c)) ? '' : cardBack('small')).join('');
+  } else if (G.phase==='count'){
+    row.innerHTML='';
+  } else {
+    row.innerHTML='';
+  }
+}
+
+function renderCribCut(){
+  const cutV = document.getElementById('cut-visual');
+  if (G.cut){
+    cutV.innerHTML = cardFace(G.cut,'flip small');
+  } else {
+    cutV.innerHTML = cardBack('small');
+  }
+}
+
+function renderHand(){
+  const row = document.getElementById('hand-row');
+  if (G.phase==='discard'){
+    row.innerHTML = G.you.map(c=>{
+      const sel = G.selected.some(s=>cardId(s)===cardId(c));
+      return cardFace(c, 'selectable deal'+(sel?' selected':''));
+    }).join('');
+    [...row.children].forEach((el,i)=>{
+      el.addEventListener('click', ()=>toggleSelect(G.you[i]));
+    });
+    fitHandRow();
+  } else if (G.phase==='peg'){
+    const legal = legalPlaysYou();
+    const unplayed = G.pegHandYou.filter(c=>!G.playedYou.some(p=>cardId(p)===cardId(c)));
+    row.innerHTML = unplayed.map(c=>{
+      const isLegal = legal.some(l=>cardId(l)===cardId(c));
+      return cardFace(c, 'selectable '+(isLegal?'playable':'unplayable'));
+    }).join('');
+    [...row.children].forEach((el,i)=>{
+      const c = unplayed[i];
+      el.addEventListener('click', ()=>attemptPlay(c));
+    });
+    fitHandRow();
+  } else {
+    row.innerHTML='';
+  }
+}
+
+function fitHandRow(){
+  const row = document.getElementById('hand-row');
+  const cards = row.querySelectorAll('.card');
+  const count = cards.length;
+  if (!count) return;
+  const containerWidth = row.clientWidth || (window.innerWidth-24);
+  // Prefer a large, fixed card width — overlap (fan) the cards instead of shrinking them.
+  let w = Math.min(76, Math.max(58, containerWidth/5.5));
+  const h = Math.round(w*1.42);
+  const naturalWidth = count*w;
+  let overlap = 0;
+  if (naturalWidth > containerWidth && count>1){
+    overlap = (naturalWidth - containerWidth) / (count-1);
+    overlap = Math.min(overlap, w-34); // keep at least ~34px of each card tappable
+  }
+  row.style.gap = '0px';
+  cards.forEach((el,i)=>{
+    el.style.width = w+'px';
+    el.style.height = h+'px';
+    el.style.marginLeft = i===0 ? '0px' : (-overlap)+'px';
+    el.style.zIndex = String(i+1);
+    el.style.padding = Math.round(w*0.09)+'px '+Math.round(w*0.11)+'px';
+    const rk = el.querySelector('.rk');
+    const sm = el.querySelector('.sm');
+    if (rk) rk.style.fontSize = Math.round(w*0.38*SETTINGS.cardNumberScale)+'px';
+    if (sm) sm.style.fontSize = Math.round(w*0.48*SETTINGS.cardNumberScale)+'px';
+  });
+}
+window.addEventListener('resize', fitHandRow);
+
+function toggleSelect(c){
+  const idx = G.selected.findIndex(s=>cardId(s)===cardId(c));
+  if (idx>=0){ G.selected.splice(idx,1); }
+  else {
+    if (G.selected.length>=2) return;
+    G.selected.push(c);
+  }
+  renderHand();
+  renderActionBar();
+  if (G.selected.length===2){
+    // one-touch: auto-confirm shortly after 2nd tap
+    setTimeout(()=>{ if (G.selected.length===2) confirmDiscard(); }, 160);
+  }
+}
+
+function renderActionBar(){
+  const bar = document.getElementById('action-bar');
+  if (G.phase==='discard'){
+    bar.innerHTML = `<span style="align-self:center;color:var(--parchment-dim);font-size:12.5px;">Tap 2 cards to crib — sends automatically</span>`;
+  } else if (G.phase==='discard-done'){
+    bar.innerHTML='';
+  } else {
+    bar.innerHTML='';
+  }
+}
+
+function renderPeggingPile(){
+  const pile = document.getElementById('pegging-pile');
+  const badge = document.getElementById('count-badge');
+  if (G.phase==='peg'){
+    badge.classList.remove('hidden');
+    badge.textContent = 'Count: '+G.pegCount;
+    pile.innerHTML = G.pegPile.map(entry=>{
+      const c = entry.card;
+      const isRed = RED_SUITS.includes(c.suit);
+      return `<div class="card ${isRed?'red':''} big pop" style="opacity:${entry.player==='you'?1:0.92}">
+        <div class="rk">${rankLabel(c.rank)}</div><div class="sm">${SUIT_SYM[c.suit]}</div>
+      </div>`;
+    }).join('');
+  } else {
+    badge.classList.add('hidden');
+    pile.innerHTML='';
+  }
+}
+
+/* ============================= DISCARD FLOW ============================= */
+function confirmDiscard(){
+  G.discardYou = G.selected.slice();
+  G.you = G.you.filter(c=>!G.discardYou.some(d=>cardId(d)===cardId(c)));
+  G.crib.push(...G.discardYou);
+  G.phase='discard-done';
+
+  if (G.mode==='online'){
+    mpSend({type:'discard', cards:G.discardYou});
+    G.myDiscardDone = true;
+  } else {
+    commitAIDiscard();
+  }
+
+  // compute analysis for hint feature (based on the 7 cards before discard)
+  const preDiscardHand = [...G.you, ...G.discardYou]; // reconstruct original 7
+  const unseen = freshDeck().filter(c=>!preDiscardHand.some(h=>cardId(h)===cardId(c)));
+  G.handAnalysis = analyzeDiscards(preDiscardHand, unseen, G.dealerIsYou);
+  const mine = G.handAnalysis.find(r=>
+    r.discard.length===2 &&
+    r.discard.some(d=>cardId(d)===cardId(G.discardYou[0])) &&
+    r.discard.some(d=>cardId(d)===cardId(G.discardYou[1]))
+  );
+  G.chosenDiscardEV = mine;
+
+  // Track discard quality for the end-of-game recap and lifetime stats.
+  G.discardCount = (G.discardCount||0) + 1;
+  const bestForRecap = G.handAnalysis[0];
+  const gap = Math.max(0, bestForRecap.combined - mine.combined);
+  if (gap < 0.01){ G.optimalDiscardCount = (G.optimalDiscardCount||0) + 1; }
+  else { G.missedPoints = (G.missedPoints||0) + gap; }
+
+  const wasOptimal = renderHint();
+  renderAll();
+  if (wasOptimal){
+    tryAdvanceToCut();
+  } else {
+    setStatus(`Crib is set. Take a look, then tap Continue when ready.`);
+    // doCut is now triggered by the Continue button inside the hint panel —
+    // no auto-advance, so there's time to actually read it.
+  }
+}
+
+/* In online mode both players discard independently — only move to the cut once both are in. */
+function tryAdvanceToCut(){
+  if (G.mode==='online'){
+    G.wantsToAdvance = true;
+    if (!G.myDiscardDone || !G.oppDiscardDone){
+      setStatus('Waiting for opponent to discard...');
+      return;
+    }
+  }
+  setStatus(`Crib is set. Cutting for starter...`);
+  setTimeout(doCut, 350);
+}
+
+function onRemoteDiscard(cards){
+  G.ai = G.ai.filter(c=>!cards.some(d=>cardId(d)===cardId(c)));
+  G.crib.push(...cards);
+  G.oppDiscardDone = true;
+  if (G.wantsToAdvance) tryAdvanceToCut();
+}
+
+function renderHint(){
+  const panel = document.getElementById('hint-panel');
+  if (!G.handAnalysis || !G.chosenDiscardEV){ panel.classList.remove('show'); panel.innerHTML=''; return true; }
+  const best = G.handAnalysis[0];
+  const mine = G.chosenDiscardEV;
+  const optimal = Math.abs(mine.combined - best.combined) < 0.01;
+
+  // Only surface the panel when the discard was NOT optimal.
+  if (optimal){
+    panel.classList.remove('show');
+    panel.innerHTML='';
+    return true;
+  }
+
+  const label = G.dealerIsYou ? 'hand + your crib' : 'hand − opponent crib risk';
+  let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <h4 style="margin:0;">Discard analysis</h4>
+    </div>`;
+  html += `<div class="row"><span class="k">Your discard EV (${label})</span><span class="v">${mine.combined.toFixed(2)}</span></div>`;
+  html += `<div class="row"><span class="k">Hand-only average, all cuts</span><span class="v">${mine.handEV.toFixed(2)}</span></div>`;
+  html += `<div class="row"><span class="k">Crib average (est.)</span><span class="v">${mine.cribEV.toFixed(2)}</span></div>`;
+  html += `<div style="margin-top:8px; display:flex; gap:8px;">
+      <button class="btn btn-small btn-ghost" id="btn-show-best">Show best discard</button>
+    </div>
+    <div id="best-reveal" style="margin-top:8px; display:none;"></div>
+    <div style="margin-top:10px;">
+      <button class="btn btn-small btn-primary" id="btn-continue-hint" style="width:100%;">Continue</button>
+    </div>`;
+
+  panel.innerHTML = html;
+  panel.classList.add('show');
+
+  document.getElementById('btn-continue-hint').addEventListener('click', ()=>{
+    panel.classList.remove('show');
+    panel.innerHTML='';
+    tryAdvanceToCut();
+  });
+
+  document.getElementById('btn-show-best').addEventListener('click', ()=>{
+    const rev = document.getElementById('best-reveal');
+    rev.style.display='block';
+    const keepSorted = [...best.keep].sort((a,b)=>a.rank-b.rank);
+    const discardSorted = [...best.discard].sort((a,b)=>a.rank-b.rank);
+    const keepHtml = keepSorted.map(c=>cardFace(c,'small')).join('');
+    const discardHtml = discardSorted.map(c=>cardFace(c,'small')).join('');
+    rev.innerHTML = `
+      <div style="display:flex; align-items:flex-start; justify-content:center; gap:12px; margin-bottom:6px;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+          <span style="font-size:9px; letter-spacing:.5px; text-transform:uppercase; color:var(--parchment-dim);">Keep</span>
+          <div style="display:flex; gap:2px;">${keepHtml}</div>
+        </div>
+        <div style="width:1px; align-self:stretch; background:rgba(242,233,214,.25); margin-top:14px;"></div>
+        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+          <span style="font-size:9px; letter-spacing:.5px; text-transform:uppercase; color:var(--parchment-dim);">Throw</span>
+          <div style="display:flex; gap:2px;">${discardHtml}</div>
+        </div>
+      </div>
+      <div class="row"><span class="k">Best discard EV</span><span class="v">${best.combined.toFixed(2)}</span></div>
+      <div class="row"><span class="k">You left on the table</span><span class="v">${(best.combined-mine.combined).toFixed(2)} pts</span></div>`;
+  }, {once:true});
+
+  return false;
+}
+
+/* ============================= CUT ============================= */
+function doCut(){
+  G.phase='cut';
+  G.cut = (G.mode==='online') ? G._pendingCut : G.deck.pop();
+  renderCribCut();
+  if (G.cut.rank===11){ // heels
+    if (G.dealerIsYou){ addScore('you', 2, 'His Heels', false, true); }
+    else { addScore('ai', 2, 'His Heels', false, true); }
+  }
+  setStatus(`Cut: <b>${rankLabel(G.cut.rank)}${SUIT_SYM[G.cut.suit]}</b>. Pegging begins — ${G.dealerIsYou?oppName():'you'} leads.`);
+  setTimeout(startPegging, 900);
+}
+
+/* ============================= PEGGING ============================= */
+function startPegging(){
+  G.phase='peg';
+  document.getElementById('hint-panel').classList.remove('show');
+  G.pegHandYou = G.you.slice();
+  G.pegHandAI = G.ai.slice();
+  G.playedYou=[]; G.playedAI=[];
+  G.pegPile=[]; G.pegCount=0;
+  G.turn = G.dealerIsYou ? 'ai' : 'you'; // non-dealer leads
+  G.cannotYou=false; G.cannotAI=false;
+  renderAll();
+  setStatus(G.turn==='you' ? `Your lead. Tap a card.` : `${oppName()}'s lead...`);
+  if (G.turn==='ai') scheduleOpponentPegMove(700);
+}
+
+function scheduleOpponentPegMove(delay){
+  // Solo mode: the bot decides and plays after a short pause.
+  // Online mode: nothing to trigger — the remote peer's own client acts on its own turn.
+  if (G.mode==='ai'){ setTimeout(aiPegTurn, delay || 650); }
+}
+
+function remainingInHand(who){
+  return who==='you' ? G.pegHandYou.filter(c=>!G.playedYou.some(p=>cardId(p)===cardId(c)))
+                      : G.pegHandAI.filter(c=>!G.playedAI.some(p=>cardId(p)===cardId(c)));
+}
+function legalPlaysYou(){
+  return remainingInHand('you').filter(c=>G.pegCount+cardValue(c.rank)<=31);
+}
+function legalPlaysAI(){
+  return remainingInHand('ai').filter(c=>G.pegCount+cardValue(c.rank)<=31);
+}
+
+function attemptPlay(card){
+  if (G.phase!=='peg' || G.turn!=='you') return;
+  const legal = legalPlaysYou();
+  if (!legal.some(c=>cardId(c)===cardId(card))) return;
+  playCard('you', card);
+  if (G.mode==='online') mpSend({type:'play', card});
+}
+
+function playCard(who, card){
+  G.pegPile.push({card, player:who});
+  G.pegCount += cardValue(card.rank);
+  if (who==='you') G.playedYou.push(card); else G.playedAI.push(card);
+  G.lastPlayer = who;
+  renderPeggingPile();
+  renderHand();
+  renderAIRow();
+  scorePeggingEvent(who);
+  checkRoundContinuation();
+}
+
+function pileSinceReset(){
+  // whole current pegPile IS since last reset because we splice it on reset
+  return G.pegPile;
+}
+
+function scorePeggingEvent(who){
+  const pile = pileSinceReset();
+  let pts = 0; const msgs=[];
+  if (G.pegCount===15){ pts+=2; msgs.push('Fifteen for 2'); }
+  if (G.pegCount===31){ pts+=2; msgs.push('Thirty-one for 2'); }
+
+  // pairs: count trailing run of same rank
+  let k=1;
+  for (let i=pile.length-2;i>=0;i--){
+    if (pile[i].card.rank===pile[pile.length-1].card.rank) k++; else break;
+  }
+  if (k===2){ pts+=2; msgs.push('Pair for 2'); }
+  else if (k===3){ pts+=6; msgs.push('Triple for 6'); }
+  else if (k>=4){ pts+=12; msgs.push('Quad for 12'); }
+
+  // runs: check trailing subsequences of length >=3 (any order) that form consecutive ranks
+  let bestRun = 0;
+  for (let len=Math.min(7,pile.length); len>=3; len--){
+    const seq = pile.slice(pile.length-len).map(e=>e.card.rank).sort((a,b)=>a-b);
+    let ok = true;
+    for (let i=1;i<seq.length;i++){ if (seq[i]!==seq[i-1]+1){ ok=false; break; } }
+    // also must have no duplicate ranks (a pure run)
+    const uniq = new Set(seq).size===seq.length;
+    if (ok && uniq){ bestRun = len; break; }
+  }
+  if (bestRun>=3){ pts+=bestRun; msgs.push(`Run of ${bestRun} for ${bestRun}`); }
+
+  if (pts>0){
+    addScore(who, pts, msgs.join(', '), false, true);
+  }
+}
+
+function checkRoundContinuation(){
+  if (G.scoreYou>=121 || G.scoreAI>=121){ return endGame(); }
+
+  if (G.pegCount===31){
+    return finishSegment('Thirty-one!');
+  }
+  // switch turn to other player if they have a legal play; else stay / go
+  const other = G.turn==='you' ? 'ai' : 'you';
+  const otherLegal = other==='you' ? legalPlaysYou() : legalPlaysAI();
+  const otherRemaining = remainingInHand(other);
+
+  if (otherRemaining.length===0 && remainingInHand(G.turn).length===0){
+    // This was the very last card of the whole pegging phase for both players.
+    // It already scored its 15/pair/run points via scorePeggingEvent; since it didn't
+    // hit 31 (that's handled above), it earns the standalone "last card" point too.
+    addScore(G.lastPlayer, 1, 'Last card', false, true);
+    return finishSegment('Round complete.');
+  }
+
+  if (otherLegal.length>0){
+    G.turn = other;
+    if (other==='you'){
+      setStatus(`Your turn. Count is ${G.pegCount}.`);
+      renderHand();
+    } else {
+      setStatus(`${oppName()}'s turn. Count is ${G.pegCount}.`);
+      scheduleOpponentPegMove();
+    }
+  } else {
+    // other player can't play -> go, or if they have no cards left, current continues if possible
+    const otherHasCards = otherRemaining.length>0;
+    const curLegal = G.turn==='you' ? legalPlaysYou() : legalPlaysAI();
+    if (otherHasCards){
+      toast((other==='you'?'You':oppName())+': Go', true);
+    }
+    if (curLegal.length>0){
+      // current player continues
+      if (G.turn==='you'){
+        setStatus(`${oppName()} says go. Your turn again. Count is ${G.pegCount}.`);
+        renderHand();
+      } else {
+        setStatus(`You have no legal play — go. ${oppName()} continues.`);
+        scheduleOpponentPegMove();
+      }
+    } else {
+      // neither can play further -> award go point to last player, reset
+      addScore(G.lastPlayer, 1, 'Go', false, true);
+      finishSegment(null, true);
+    }
+  }
+}
+
+function finishSegment(msg, isGo){
+  // Wait a beat before clearing the pile — otherwise a card that ends a segment
+  // (hits 31, or triggers a go/last-card) gets removed in the same instant it's
+  // played and the player never actually sees what was played.
+  setTimeout(()=>{
+    if (msg) toast(msg);
+    G.pegPile = [];
+    G.pegCount = 0;
+    const remYou = remainingInHand('you').length;
+    const remAI = remainingInHand('ai').length;
+    renderPeggingPile();
+    if (remYou===0 && remAI===0){
+      setTimeout(startCounting, 700);
+      return;
+    }
+    // whoever didn't play last leads next (standard: player after the one who last played)
+    G.turn = G.lastPlayer==='you' ? 'ai' : 'you';
+    // if that player has no cards, flip to the one who does
+    if (G.turn==='you' && remYou===0) G.turn='ai';
+    if (G.turn==='ai' && remAI===0) G.turn='you';
+    setTimeout(()=>{
+      if (G.turn==='you'){ setStatus(`New count. Your lead.`); renderHand(); }
+      else { setStatus(`New count. ${oppName()} leads.`); scheduleOpponentPegMove(); }
+    }, 500);
+  }, 950);
+}
+
+function aiPegTurn(){
+  if (G.mode!=='ai' || G.phase!=='peg' || G.turn!=='ai') return;
+  const legal = legalPlaysAI();
+  if (legal.length===0){
+    checkRoundContinuation();
+    return;
+  }
+
+  let choice = null;
+
+  if (DIFFICULTY==='easy'){
+    // Mostly plays blind. Only sometimes notices a free 15/31, otherwise plays a random legal card.
+    if (Math.random()<0.35){
+      for (const c of legal){ if (G.pegCount+cardValue(c.rank)===15 || G.pegCount+cardValue(c.rank)===31){ choice=c; break; } }
+    }
+    if (!choice) choice = legal[Math.floor(Math.random()*legal.length)];
+  } else {
+    // Medium & Hard both always grab a free 15/31 or an obvious pair.
+    for (const c of legal){ if (G.pegCount+cardValue(c.rank)===15 || G.pegCount+cardValue(c.rank)===31){ choice=c; break; } }
+    if (!choice){
+      const lastCard = G.pegPile[G.pegPile.length-1];
+      if (lastCard){
+        const pairCard = legal.find(c=>c.rank===lastCard.card.rank);
+        if (pairCard) choice = pairCard;
+      }
+    }
+    if (!choice){
+      if (DIFFICULTY==='hard'){
+        // One-ply lookahead: for each legal card, count how many of the 13 ranks would let
+        // the opponent hit 15/31 or pair it on their very next card, and play the safest one.
+        let bestCard=null, bestDanger=Infinity;
+        for (const c of legal){
+          const nc = G.pegCount + cardValue(c.rank);
+          let danger = 0;
+          for (let r=1;r<=13;r++){
+            const v = cardValue(r);
+            if (nc+v===15 || nc+v===31) danger++;
+            if (r===c.rank) danger++; // risk of feeding a pair
+          }
+          if (danger<bestDanger || (danger===bestDanger && cardValue(c.rank) > (bestCard?cardValue(bestCard.rank):-1))){
+            bestDanger = danger; bestCard = c;
+          }
+        }
+        choice = bestCard;
+      } else {
+        // Medium: just dodges the classic "5" and "21" traps, otherwise plays high.
+        const safe = legal.filter(c=>{
+          const nc = G.pegCount+cardValue(c.rank);
+          return nc!==5 && nc!==21;
+        });
+        const pool = safe.length? safe: legal;
+        pool.sort((a,b)=>cardValue(b.rank)-cardValue(a.rank));
+        choice = pool[0];
+      }
+    }
+  }
+  playCard('ai', choice);
+}
+
+/* ============================= COUNTING ============================= */
+function startCounting(){
+  G.phase='count';
+  renderAll();
+  const order = G.dealerIsYou ? ['ai','you','crib'] : ['you','ai','crib'];
+  let i=0;
+  function step(){
+    if (i>=order.length){ return afterCounting(); }
+    const who = order[i]; i++;
+    revealCount(who, step);
+  }
+  step();
+}
+
+function revealCount(who, cb){
+  let cards, label, isCrib=false;
+  if (who==='you'){ cards=G.you; label='Your hand'; }
+  else if (who==='ai'){ cards=[...G.ai].sort((a,b)=>a.rank-b.rank); label=`${oppName()}'s hand`; }
+  else { cards=[...G.crib].sort((a,b)=>a.rank-b.rank); label = (G.dealerIsYou?'Your':oppName()+"'s")+' crib'; isCrib=true; }
+
+  const recipient = who==='ai' ? 'ai' : (who==='you' ? 'you' : (G.dealerIsYou?'you':'ai'));
+
+  setStatus(`Counting: <b>${label}</b>`);
+  if (who==='you' || who==='crib'){
+    // Crib is shown in the same hand-row spot as any other counted hand, for consistency.
+    document.getElementById('hand-row').innerHTML = cards.map(c=>cardFace(c,'flip')).join('');
+    fitHandRow();
+  } else if (who==='ai'){
+    document.getElementById('ai-row').innerHTML = cards.map(c=>cardFace(c,'flip')).join('');
+  }
+
+  const res = scoreHand(cards, G.cut, isCrib);
+  setTimeout(()=>{
+    // Self-counting only applies to points that are actually yours — not the bot's hand,
+    // and not the crib on a hand where the bot is dealer.
+    if (SETTINGS.selfCount && recipient==='you'){
+      showCountKeypad(label, res, ()=> finishReveal(who, recipient, label, res, cb));
+    } else {
+      finishReveal(who, recipient, label, res, cb);
+    }
+  }, 500);
+}
+
+function finishReveal(who, recipient, label, res, cb){
+  const banner = document.getElementById('count-banner');
+  if (res.total>0){
+    addScore(recipient, res.total, label+': '+ (res.breakdown.map(b=>b[0]).join(', ') || '—'), true);
+    banner.textContent = `${label}: +${res.total} — ${res.breakdown.map(b=>b[0]).join(', ')}`;
+  } else {
+    banner.textContent = `${label}: 0 points`;
+  }
+  banner.classList.add('show');
+  // Banner stays put — no auto-fade — until the player continues.
+  const bar = document.getElementById('action-bar');
+  bar.innerHTML = `<button class="btn btn-primary btn-small" id="btn-count-continue">Continue</button>`;
+  document.getElementById('btn-count-continue').addEventListener('click', ()=>{
+    banner.classList.remove('show');
+    banner.textContent = '';
+    bar.innerHTML='';
+    cb();
+  }, {once:true});
+}
+
+/* Self-count mode: player enters their own tally on a numeric keypad before the real score shows. */
+function showCountKeypad(label, res, onDone){
+  const bar = document.getElementById('action-bar');
+  let entry = '';
+
+  function renderPad(){
+    bar.innerHTML = `
+      <div class="keypad-box">
+        <div class="keypad-prompt">How many points — <b>${label}</b>?</div>
+        <div class="keypad-display">${entry.length ? entry : '0'}</div>
+        <div class="keypad-grid">
+          ${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="keypad-key" data-k="${n}">${n}</button>`).join('')}
+          <button class="keypad-key keypad-back" data-k="back">⌫</button>
+          <button class="keypad-key" data-k="0">0</button>
+          <button class="keypad-key keypad-submit" data-k="submit">✓</button>
+        </div>
+      </div>`;
+    bar.querySelectorAll('.keypad-key').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const k = btn.dataset.k;
+        if (k==='back'){ entry = entry.slice(0,-1); renderPad(); }
+        else if (k==='submit'){ submitGuess(); }
+        else { if (entry.length<2) entry += k; renderPad(); }
+      });
+    });
+  }
+
+  function submitGuess(){
+    const guess = entry.length ? parseInt(entry,10) : 0;
+    const correct = guess === res.total;
+    bar.innerHTML = `
+      <div class="keypad-feedback ${correct?'correct':'incorrect'}">
+        ${correct ? `✓ Correct — ${res.total} points!` : `You said ${guess} — actually ${res.total} points`}
+      </div>
+      <button class="btn btn-primary btn-small" id="btn-keypad-ok" style="margin-top:8px; width:100%;">Continue</button>`;
+    document.getElementById('btn-keypad-ok').addEventListener('click', onDone, {once:true});
+  }
+
+  renderPad();
+}
+
+function afterCounting(){
+  G.handsThisGame = (G.handsThisGame||0) + 1;
+  if (G.scoreYou>=121 || G.scoreAI>=121){ return endGame(); }
+  setStatus('Hand complete. Continue when ready for the next deal.');
+  const bar = document.getElementById('action-bar');
+  bar.innerHTML = `<button class="btn btn-primary" id="btn-next-hand">Continue to Next Hand</button>`;
+  document.getElementById('btn-next-hand').addEventListener('click', ()=>{
+    bar.innerHTML='';
+    G.dealerIsYou = !G.dealerIsYou;
+    document.getElementById('dealer-tag').textContent = 'deal: ' + (G.dealerIsYou?'you':oppName().toLowerCase());
+    if (G.mode==='online' && !MP.isHost){
+      // Only the host actually shuffles/deals — the guest just waits for the next 'deal' message.
+      setStatus('Waiting for the next deal...');
+    } else {
+      startHand();
+    }
+  }, {once:true});
+}
+
+/* ============================= SCORE / END ============================= */
+function addScore(who, pts, reason, silent, popup){
+  if (who==='you'){ G.scoreYou = Math.min(121, G.scoreYou+pts); }
+  else { G.scoreAI = Math.min(121, G.scoreAI+pts); }
+  updateScoreUI();
+  if (!silent) toast((who==='you'?'You':oppName())+': +'+pts+(reason?' — '+reason:''));
+  if (popup) spawnScorePopup(who, pts);
+  // popup=true marks pegging-phase scoring (15s/pairs/runs/31/go/heels) — track it for lifetime stats.
+  if (popup && who==='you'){ G.peggedPointsYou = (G.peggedPointsYou||0) + pts; }
+  if (G.scoreYou>=121 || G.scoreAI>=121){ setTimeout(endGame, 900); }
+}
+
+function endGame(){
+  G.phase='over';
+  const youWin = G.scoreYou>=121;
+  const winnerScore = youWin?G.scoreYou:G.scoreAI;
+  const loserScore = youWin?G.scoreAI:G.scoreYou;
+  let skunkMsg = '';
+  if (loserScore<=87) skunkMsg = ' — a double skunk!';
+  else if (loserScore<=90) skunkMsg = '';
+  document.getElementById('ov-title').textContent = youWin ? 'You win!' : `${oppName()} wins`;
+  document.getElementById('ov-sub').textContent = `${G.scoreYou} — ${G.scoreAI}${skunkMsg}`;
+
+  const discards = G.discardCount||0;
+  const optimal = G.optimalDiscardCount||0;
+  const missed = G.missedPoints||0;
+  const recap = document.getElementById('ov-recap');
+  if (discards>0){
+    recap.innerHTML = missed>0.05
+      ? `Discards this game: <b>${optimal}/${discards}</b> optimal — you left about <b>${missed.toFixed(1)}</b> points on the table.`
+      : `Discards this game: <b>${optimal}/${discards}</b> optimal — nothing left on the table. Clean game!`;
+  } else {
+    recap.innerHTML = '';
+  }
+
+  recordGameToLifetime(youWin);
+  document.getElementById('overlay').classList.add('show');
+}
+
+/* ============================= WIRE UP ============================= */
+/* Board holes are positioned by percentage, so no resize handler is needed. */
+function selectDiff(d){
+  DIFFICULTY = d;
+  document.querySelectorAll('.diff-btn').forEach(b=> b.classList.toggle('active', b.dataset.diff===d));
+  document.getElementById('diff-desc').textContent = DIFF_DESC[d];
+}
+document.querySelectorAll('.diff-btn').forEach(b=>{
+  b.addEventListener('click', ()=>selectDiff(b.dataset.diff));
+});
+selectDiff('medium');
+function selectTheme(t){
+  SETTINGS.theme = t;
+  document.body.classList.remove('theme-modern','theme-neon');
+  if (t==='modern') document.body.classList.add('theme-modern');
+  if (t==='neon') document.body.classList.add('theme-neon');
+  document.querySelectorAll('.theme-btn').forEach(b=> b.classList.toggle('active', b.dataset.theme===t));
+}
+document.querySelectorAll('.theme-btn').forEach(b=>{
+  b.addEventListener('click', ()=>selectTheme(b.dataset.theme));
+});
+selectTheme('classic');
+document.getElementById('toggle-selfcount').addEventListener('change', (e)=>{
+  SETTINGS.selfCount = e.target.checked;
+});
+document.getElementById('slider-cardsize').addEventListener('input', (e)=>{
+  const pct = parseInt(e.target.value, 10);
+  SETTINGS.cardNumberScale = pct/100;
+  document.documentElement.style.setProperty('--card-num-scale', SETTINGS.cardNumberScale);
+  document.getElementById('cardsize-val').textContent = pct+'%';
+  // Dynamically-sized hand cards need a fresh render to pick up the new scale immediately.
+  if (G && (G.phase==='discard' || G.phase==='peg')) renderHand();
+});
+document.getElementById('btn-play').addEventListener('click', ()=>{
+  document.getElementById('menu').style.display='none';
+  document.getElementById('game').classList.add('active');
+  newGame();
+});
+document.getElementById('btn-howto').addEventListener('click', ()=>{
+  alert('PEGGING: Players alternate playing one card at a time face-up, adding to a running count that resets after 31 (or when neither player can play without exceeding it). Score 2 for reaching 15, 2 for a pair (6 for three, 12 for four), points equal to length for a run of 3+ consecutive ranks played in sequence, 2 for hitting exactly 31, and 1 for "go" (last card played before a reset). After play, hands are counted for 15s, pairs, runs, flushes, and nobs — non-dealer first, then dealer, then the dealer\'s crib.');
+});
+document.getElementById('btn-again').addEventListener('click', ()=>{
+  document.getElementById('overlay').classList.remove('show');
+  if (G && G.mode==='online'){
+    if (MP.isHost){
+      newGame();
+    } else {
+      mpSend({type:'rematch'});
+      setStatus('Waiting for host to start a new game...');
+    }
+  } else {
+    newGame();
+  }
+});
+
+/* ---------------- Lifetime stats wiring ---------------- */
+document.getElementById('btn-view-stats').addEventListener('click', ()=>{
+  renderStatsBody();
+  document.getElementById('stats-overlay').classList.add('show');
+});
+document.getElementById('btn-menu-stats').addEventListener('click', ()=>{
+  renderStatsBody();
+  document.getElementById('stats-overlay').classList.add('show');
+});
+document.getElementById('btn-stats-close').addEventListener('click', ()=>{
+  document.getElementById('stats-overlay').classList.remove('show');
+});
+document.getElementById('btn-stats-reset').addEventListener('click', ()=>{
+  if (confirm('Reset all lifetime stats? This cannot be undone.')){
+    LIFETIME = defaultLifetimeStats();
+    saveLifetimeStats();
+    renderStatsBody();
+  }
+});
+
+/* ---------------- Multiplayer menu wiring ---------------- */
+document.getElementById('btn-mp').addEventListener('click', ()=>{
+  document.getElementById('menu').style.display='none';
+  document.getElementById('mp-screen').classList.add('active');
+});
+document.getElementById('btn-mp-back').addEventListener('click', ()=>{
+  if (MP.conn) { try{ MP.conn.close(); }catch(e){} }
+  if (MP.peer) { try{ MP.peer.destroy(); }catch(e){} }
+  MP.conn=null; MP.peer=null; MP.connected=false; MP.isHost=false; MP.roomCode=null;
+  document.getElementById('mp-choice').style.display='flex';
+  document.getElementById('mp-status').style.display='none';
+  document.getElementById('mp-code-display').style.display='none';
+  document.getElementById('mp-code-input').value='';
+  document.getElementById('mp-screen').classList.remove('active');
+  document.getElementById('menu').style.display='flex';
+});
+document.getElementById('btn-mp-create').addEventListener('click', mpCreateRoom);
+document.getElementById('btn-mp-join').addEventListener('click', ()=>{
+  mpJoinRoom(document.getElementById('mp-code-input').value);
+});
+document.getElementById('mp-code-input').addEventListener('keydown', (e)=>{
+  if (e.key==='Enter') mpJoinRoom(document.getElementById('mp-code-input').value);
+});
+</script>
+</body>
+</html>
