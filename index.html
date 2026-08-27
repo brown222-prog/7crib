@@ -356,15 +356,27 @@ input[type="range"]::-moz-range-thumb{
 .stat-row.dim{border-bottom:none; opacity:.55; font-size:11.5px; padding-top:10px;}
 .stat-row.dim span:last-child{font-weight:500;}
 .stats-note{font-size:11px; color:var(--parchment-dim); margin:12px 0 16px; line-height:1.5;}
-.chart-block{margin-top:14px; text-align:left;}
+.chart-block{margin-top:14px; text-align:left; background:rgba(0,0,0,.2); border-radius:10px; padding:10px 10px 8px;}
 .chart-title{font-size:11px; color:var(--parchment-dim); text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px;}
-.chart-row{display:flex; align-items:flex-end; gap:3px; height:54px;}
-.chart-bar{flex:1; min-width:4px; border-radius:3px 3px 0 0; transition:height .3s ease;}
-.chart-empty{font-size:11.5px; color:var(--parchment-dim); text-align:center; padding:14px 0;}
-.form-row{display:flex; align-items:center; gap:4px; flex-wrap:wrap;}
-.form-dot{width:11px; height:11px; border-radius:50%; flex-shrink:0;}
-.form-dot.win{background:var(--good);}
-.form-dot.loss{background:var(--red);}
+.chart-empty{font-size:11.5px; color:var(--parchment-dim); text-align:center; padding:20px 0;}
+.chart-svg-wrap{position:relative; height:64px;}
+.chart-svg{width:100%; height:64px; display:block; overflow:visible;}
+.chart-corner-label{position:absolute; top:-2px; right:0; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--brass);}
+.chart-legend{display:flex; gap:14px; margin-top:6px; font-size:10.5px; color:var(--parchment-dim);}
+.chart-legend span{display:flex; align-items:center; gap:4px;}
+.chart-legend .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+.chart-legend .dot.win{background:var(--good);}
+.chart-legend .dot.loss{background:var(--red);}
+.chart-legend .dot.bar{background:var(--brass);}
+.chart-legend .dot.trend{background:var(--parchment); border-radius:2px; height:2px; width:10px;}
+
+.margin-wrap .margin-row{display:flex; align-items:stretch; gap:2px; height:64px;}
+.margin-bar-wrap{flex:1; display:flex; flex-direction:column; min-width:3px;}
+.margin-bar-top{flex:1; display:flex; align-items:flex-end; border-bottom:1px solid rgba(242,233,214,.25);}
+.margin-bar-bottom{flex:1; display:flex; align-items:flex-start;}
+.margin-fill{width:100%; border-radius:2px;}
+.margin-fill.win{background:var(--good);}
+.margin-fill.loss{background:var(--red);}
 
 /* small screens */
 @media (max-width:380px){
@@ -512,18 +524,20 @@ input[type="range"]::-moz-range-thumb{
     <div id="stats-body"></div>
 
     <div class="chart-block">
-      <div id="chart-form-title" class="chart-title">Recent form</div>
-      <div id="chart-form" class="form-row"></div>
+      <div id="chart-winrate-title" class="chart-title">Win rate over time</div>
+      <div id="chart-winrate" class="chart-svg-wrap"></div>
+    </div>
+
+    <div class="chart-block">
+      <div id="chart-margin-title" class="chart-title">Score margin per game</div>
+      <div id="chart-margin" class="chart-svg-wrap margin-wrap"></div>
+      <div class="chart-legend"><span><i class="dot win"></i> Win</span><span><i class="dot loss"></i> Loss</span></div>
     </div>
 
     <div class="chart-block">
       <div id="chart-missed-title" class="chart-title">Points missed per game</div>
-      <div id="chart-missed" class="chart-row"></div>
-    </div>
-
-    <div class="chart-block">
-      <div id="chart-scored-title" class="chart-title">Your final score per game</div>
-      <div id="chart-scored" class="chart-row"></div>
+      <div id="chart-missed" class="chart-svg-wrap"></div>
+      <div class="chart-legend"><span><i class="dot bar"></i> Missed</span><span><i class="dot trend"></i> Trend</span></div>
     </div>
 
     <p class="stats-note">Saved in this browser only — clearing site data, switching browsers, or a new device will reset it.</p>
@@ -707,6 +721,8 @@ function defaultCategoryStats(){
     totalPointsScored:0,
     totalDiscards:0, optimalDiscards:0, pointsMissedLifetime:0,
     lastPlayed:null,
+    highestScore:0, currentStreak:0, streakType:null, bestWinStreak:0,
+    skunkWins:0, doubleSkunkWins:0, skunkLosses:0, doubleSkunkLosses:0,
     history:[] // recent games: {won, youScore, oppScore, missed}, capped at 30
   };
 }
@@ -743,6 +759,23 @@ function recordGameToLifetime(youWon){
   s.optimalDiscards += (G.optimalDiscardCount||0);
   s.pointsMissedLifetime += (G.missedPoints||0);
   s.lastPlayed = new Date().toISOString();
+  s.highestScore = Math.max(s.highestScore||0, G.scoreYou);
+
+  if (youWon){
+    s.currentStreak = (s.streakType==='win') ? (s.currentStreak+1) : 1;
+    s.streakType = 'win';
+    if (s.currentStreak > (s.bestWinStreak||0)) s.bestWinStreak = s.currentStreak;
+  } else {
+    s.currentStreak = (s.streakType==='loss') ? (s.currentStreak+1) : 1;
+    s.streakType = 'loss';
+  }
+
+  const loserScore = youWon ? G.scoreAI : G.scoreYou;
+  if (loserScore<=86){
+    if (youWon){ s.skunkWins+=1; if (loserScore<=60) s.doubleSkunkWins+=1; }
+    else { s.skunkLosses+=1; if (loserScore<=60) s.doubleSkunkLosses+=1; }
+  }
+
   s.history.push({
     won: youWon, youScore: G.scoreYou, oppScore: G.scoreAI, missed: +(G.missedPoints||0).toFixed(1)
   });
@@ -750,19 +783,75 @@ function recordGameToLifetime(youWon){
   saveLifetimeStats();
 }
 
-function renderMiniChart(containerId, values, colorFn, opts){
+/* ---- chart renderers ---- */
+function chartEmpty(el){ el.innerHTML = '<div class="chart-empty">Play a few games to see this</div>'; }
+
+/* Bar chart with an optional smoothed rolling-average line drawn over the top —
+   the combination (raw bars + trend line) is the standard way analytics dashboards
+   show a noisy per-event metric alongside how it's trending. */
+function renderBarChartWithTrend(containerId, values, colorFn, opts){
   const el = document.getElementById(containerId);
-  if (!values.length){ el.innerHTML = '<div class="chart-empty">Play a few games to see this</div>'; return; }
-  const max = (opts && opts.max) || Math.max(...values, 1);
-  el.innerHTML = values.map(v=>{
-    const h = Math.max(6, Math.round((v/max)*100));
-    return `<div class="chart-bar" style="height:${h}%; background:${colorFn(v)};" title="${v}"></div>`;
+  if (!values.length) return chartEmpty(el);
+  opts = opts || {};
+  const max = opts.max || Math.max(...values, 1);
+  const w = 280, h = 64;
+  const n = values.length;
+  const barW = w/n;
+  const bars = values.map((v,i)=>{
+    const bh = Math.max(2, (v/max)*h);
+    return `<rect x="${(i*barW+1).toFixed(1)}" y="${(h-bh).toFixed(1)}" width="${Math.max(1,barW-2).toFixed(1)}" height="${bh.toFixed(1)}" fill="${colorFn(v)}" rx="1.5"/>`;
   }).join('');
+  let trendSvg = '';
+  if (opts.trend && n>=2){
+    const window = Math.max(2, Math.min(5, Math.round(n/3)));
+    const pts = values.map((_,i)=>{
+      const lo = Math.max(0,i-window+1);
+      const slice = values.slice(lo, i+1);
+      const avg = slice.reduce((a,b)=>a+b,0)/slice.length;
+      const x = i*barW + barW/2;
+      const y = h - Math.min(h-2, (avg/max)*h);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    trendSvg = `<polyline points="${pts}" fill="none" stroke="var(--parchment)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity=".85"/>`;
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart-svg">${bars}${trendSvg}</svg>`;
 }
-function renderFormRow(containerId, wins){
+
+/* Cumulative win-rate line — the classic "rating over time" style trend line, with a
+   dashed 50% reference so it's obvious at a glance whether you're above or below even. */
+function renderWinRateLine(containerId, wins){
   const el = document.getElementById(containerId);
-  if (!wins.length){ el.innerHTML = '<div class="chart-empty">Play a few games to see this</div>'; return; }
-  el.innerHTML = wins.map(w=>`<div class="form-dot ${w?'win':'loss'}" title="${w?'Win':'Loss'}"></div>`).join('');
+  if (!wins.length) return chartEmpty(el);
+  let w2 = 0;
+  const pctSeries = wins.map((won,i)=>{ if (won) w2++; return (w2/(i+1))*100; });
+  const width=280, height=64, pad=4;
+  const n = pctSeries.length;
+  const stepX = n>1 ? (width-2*pad)/(n-1) : 0;
+  const toY = p => height-pad - (p/100)*(height-2*pad);
+  const pts = pctSeries.map((p,i)=> `${(pad+i*stepX).toFixed(1)},${toY(p).toFixed(1)}`).join(' ');
+  const baselineY = toY(50).toFixed(1);
+  const lastPct = Math.round(pctSeries[pctSeries.length-1]);
+  el.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" class="chart-svg">
+      <line x1="${pad}" y1="${baselineY}" x2="${width-pad}" y2="${baselineY}" stroke="rgba(242,233,214,.25)" stroke-dasharray="3,3" stroke-width="1"/>
+      <polyline points="${pts}" fill="none" stroke="var(--brass)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div class="chart-corner-label">${lastPct}%</div>`;
+}
+
+/* Diverging bars centered on zero — your margin of victory (green, above) or defeat
+   (red, below) each game, at a glance shows both W/L and how close each game was. */
+function renderMarginChart(containerId, margins){
+  const el = document.getElementById(containerId);
+  if (!margins.length) return chartEmpty(el);
+  const max = Math.max(...margins.map(m=>Math.abs(m)), 10);
+  el.innerHTML = `<div class="margin-row">${margins.map(m=>{
+    const pct = Math.max(5, Math.round((Math.abs(m)/max)*100));
+    const isWin = m>=0;
+    return `<div class="margin-bar-wrap" title="${m>=0?'+':''}${m}">
+      <div class="margin-bar-top">${isWin?`<div class="margin-fill win" style="height:${pct}%"></div>`:''}</div>
+      <div class="margin-bar-bottom">${!isWin?`<div class="margin-fill loss" style="height:${pct}%"></div>`:''}</div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 let currentStatsCategory = 'medium';
@@ -778,20 +867,28 @@ function renderStatsBody(){
   const winPct = s.gamesPlayed ? Math.round(100*s.wins/s.gamesPlayed) : 0;
   const avgMissed = s.gamesPlayed ? (s.pointsMissedLifetime/s.gamesPlayed) : 0;
   const lastPlayed = s.lastPlayed ? new Date(s.lastPlayed).toLocaleDateString() : '—';
+  const streakText = s.currentStreak ? `${s.currentStreak} ${s.streakType==='win'?'win':'loss'}${s.currentStreak>1?'s':''}` : '—';
+  const skunkText = (s.skunkWins||s.skunkLosses)
+    ? `${s.skunkWins} given${s.doubleSkunkWins?` (${s.doubleSkunkWins} double)`:''} / ${s.skunkLosses} taken${s.doubleSkunkLosses?` (${s.doubleSkunkLosses} double)`:''}`
+    : '—';
   document.getElementById('stats-body').innerHTML = `
     <div class="stat-row"><span>Games played</span><span>${s.gamesPlayed}</span></div>
     <div class="stat-row"><span>Record</span><span>${s.wins}-${s.losses} (${winPct}% wins)</span></div>
+    <div class="stat-row"><span>Current streak</span><span>${streakText}</span></div>
+    <div class="stat-row"><span>Best win streak</span><span>${s.bestWinStreak||0}</span></div>
+    <div class="stat-row"><span>Highest score</span><span>${s.highestScore||0}</span></div>
     <div class="stat-row"><span>Total points scored</span><span>${s.totalPointsScored}</span></div>
     <div class="stat-row"><span>Avg. points missed / game</span><span>${s.gamesPlayed? avgMissed.toFixed(1) : '—'}</span></div>
+    <div class="stat-row"><span>Skunks (given / taken)</span><span>${skunkText}</span></div>
     <div class="stat-row dim"><span>Last played</span><span>${lastPlayed}</span></div>
   `;
   const recent = s.history.slice(-15);
-  document.getElementById('chart-form-title').textContent = `Recent form (last ${recent.length})`;
-  renderFormRow('chart-form', recent.map(h=>h.won));
+  document.getElementById('chart-winrate-title').textContent = `Win rate over time (cumulative)`;
+  renderWinRateLine('chart-winrate', recent.map(h=>h.won));
+  document.getElementById('chart-margin-title').textContent = `Score margin per game (you − opponent)`;
+  renderMarginChart('chart-margin', recent.map(h=>h.youScore - h.oppScore));
   document.getElementById('chart-missed-title').textContent = `Points missed per game — lower is better`;
-  renderMiniChart('chart-missed', recent.map(h=>h.missed), v=> v===0 ? 'var(--good)' : 'var(--brass)');
-  document.getElementById('chart-scored-title').textContent = `Your final score per game`;
-  renderMiniChart('chart-scored', recent.map(h=>h.youScore), ()=> 'var(--pewter)', {max:121});
+  renderBarChartWithTrend('chart-missed', recent.map(h=>h.missed), v=> v===0 ? 'var(--good)' : 'var(--brass)', {trend:true});
 }
 
 
@@ -922,7 +1019,9 @@ function processMpInbox(){
   if (MP_INBOX.length) processMpInbox();
 }
 function applyMpMessage(msg){
-  if (msg.type==='cutfordeal'){
+  if (msg.type==='newgame'){
+    applyRemoteNewGame();
+  } else if (msg.type==='cutfordeal'){
     applyRemoteCutForDeal(msg.hostCard, msg.guestCard, msg.hostDeals);
   } else if (msg.type==='deal'){
     applyRemoteDeal(msg);
@@ -931,8 +1030,12 @@ function applyMpMessage(msg){
   } else if (msg.type==='play'){
     playCard('ai', msg.card);
   } else if (msg.type==='rematch'){
-    setStatus('Opponent wants a rematch — starting new game.');
-    setTimeout(()=>newGame(), T(300));
+    // Only the host actually starts a rematch — a guest is never expected to receive this,
+    // but ignore it defensively rather than risk a double-deal if it somehow does.
+    if (MP.isHost){
+      setStatus('Opponent wants a rematch — starting new game.');
+      startRematch();
+    }
   }
 }
 
@@ -941,6 +1044,30 @@ function applyMpMessage(msg){
    which was the source of the "both sides show opponent's deal" bug). */
 function applyRemoteDeal(msg){
   startHand({ yourHand: msg.yourHand, oppHand: msg.oppHand, cribCard: msg.cribCard, cutCard: msg.cutCard, dealerIsYou: msg.dealerIsYou });
+}
+
+/* Guest-side reset for the start of a brand new game (including rematches). Without this, a
+   rematch would leave the guest reusing its old G object — startHand() only resets per-hand
+   fields, never the score — so the guest kept showing the previous game's final score even
+   though a fresh game was already under way underneath. Host sends 'newgame' explicitly so
+   this always fires, instead of relying on the guest inferring it from other messages. */
+function applyRemoteNewGame(){
+  document.getElementById('overlay').classList.remove('show');
+  updateOpponentLabels();
+  G = {
+    scoreYou:0, scoreAI:0, dealerIsYou:false, phase:'waiting', mode:'online',
+    statsCategory: 'online',
+    you:[], ai:[], crib:[], cut:null, deck:[], _pendingCut:null,
+    discardYou:[], selected:[], pegPile:[], pegCount:0,
+    pegHandYou:[], pegHandAI:[], playedYou:[], playedAI:[],
+    lastPlayer:null, turn:null, handAnalysis:null, chosenDiscardEV:null,
+    myDiscardDone:false, oppDiscardDone:false, wantsToAdvance:false,
+    missedPoints:0, discardCount:0, optimalDiscardCount:0,
+    totalPointsYou:0
+  };
+  updateScoreUI(true);
+  document.getElementById('dealer-tag').textContent = 'deal: —';
+  setStatus('Waiting for the host to cut for deal...');
 }
 
 function newGame(){
@@ -967,7 +1094,18 @@ function newGame(){
   updateScoreUI(true);
   updateOpponentLabels();
   document.getElementById('dealer-tag').textContent = 'deal: —';
+  if (mode==='online' && MP.isHost){
+    mpSend({type:'newgame'});
+  }
   cutForDeal();
+}
+
+/* Guards against newGame() firing twice in quick succession — e.g. the host clicking
+   "Play Again" at nearly the same moment the guest's rematch request arrives — which was
+   corrupting state (stale timers from the first deal writing into the second one's G). */
+function startRematch(){
+  if (G && G.phase !== 'over') return;
+  newGame();
 }
 
 /* Called on the guest's client only, when connected — waits for the host to drive things. */
@@ -976,20 +1114,7 @@ function startOnlineGame(){
   if (MP.isHost){
     newGame();
   } else {
-    G = {
-      scoreYou:0, scoreAI:0, dealerIsYou:false, phase:'waiting', mode:'online',
-      statsCategory: 'online',
-      you:[], ai:[], crib:[], cut:null, deck:[], _pendingCut:null,
-      discardYou:[], selected:[], pegPile:[], pegCount:0,
-      pegHandYou:[], pegHandAI:[], playedYou:[], playedAI:[],
-      lastPlayer:null, turn:null, handAnalysis:null, chosenDiscardEV:null,
-      myDiscardDone:false, oppDiscardDone:false, wantsToAdvance:false,
-      missedPoints:0, discardCount:0, optimalDiscardCount:0,
-      totalPointsYou:0
-    };
-    updateScoreUI(true);
-    document.getElementById('dealer-tag').textContent = 'deal: —';
-    setStatus('Connected. Waiting for the host to cut for deal...');
+    applyRemoteNewGame();
   }
 }
 
@@ -1929,7 +2054,7 @@ document.getElementById('btn-again').addEventListener('click', ()=>{
   document.getElementById('overlay').classList.remove('show');
   if (G && G.mode==='online'){
     if (MP.isHost){
-      newGame();
+      startRematch();
     } else {
       mpSend({type:'rematch'});
       setStatus('Waiting for host to start a new game...');
