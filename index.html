@@ -106,6 +106,11 @@ h1,h2,h3,.disp{font-family:'Fraunces',serif;}
 }
 #mp-screen.active{display:flex;}
 #mp-screen .sub{color:var(--parchment-dim); font-size:15px; max-width:340px; line-height:1.5; margin:0;}
+#settings-screen{
+  display:none; flex:1; flex-direction:column; align-items:center; justify-content:center;
+  padding:32px 20px 48px; text-align:center; gap:16px; min-height:100vh; overflow-y:auto;
+}
+#settings-screen.active{display:flex;}
 .rule-card{
   background:rgba(0,0,0,.22); border:1px solid rgba(201,162,39,.3); border-radius:14px;
   padding:14px 18px; max-width:360px; font-size:13.5px; color:var(--parchment-dim); text-align:left; line-height:1.55;
@@ -356,27 +361,6 @@ input[type="range"]::-moz-range-thumb{
 .stat-row.dim{border-bottom:none; opacity:.55; font-size:11.5px; padding-top:10px;}
 .stat-row.dim span:last-child{font-weight:500;}
 .stats-note{font-size:11px; color:var(--parchment-dim); margin:12px 0 16px; line-height:1.5;}
-.chart-block{margin-top:14px; text-align:left; background:rgba(0,0,0,.2); border-radius:10px; padding:10px 10px 8px;}
-.chart-title{font-size:11px; color:var(--parchment-dim); text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px;}
-.chart-empty{font-size:11.5px; color:var(--parchment-dim); text-align:center; padding:20px 0;}
-.chart-svg-wrap{position:relative; height:64px;}
-.chart-svg{width:100%; height:64px; display:block; overflow:visible;}
-.chart-corner-label{position:absolute; top:-2px; right:0; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600; color:var(--brass);}
-.chart-legend{display:flex; gap:14px; margin-top:6px; font-size:10.5px; color:var(--parchment-dim);}
-.chart-legend span{display:flex; align-items:center; gap:4px;}
-.chart-legend .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
-.chart-legend .dot.win{background:var(--good);}
-.chart-legend .dot.loss{background:var(--red);}
-.chart-legend .dot.bar{background:var(--brass);}
-.chart-legend .dot.trend{background:var(--parchment); border-radius:2px; height:2px; width:10px;}
-
-.margin-wrap .margin-row{display:flex; align-items:stretch; gap:2px; height:64px;}
-.margin-bar-wrap{flex:1; display:flex; flex-direction:column; min-width:3px;}
-.margin-bar-top{flex:1; display:flex; align-items:flex-end; border-bottom:1px solid rgba(242,233,214,.25);}
-.margin-bar-bottom{flex:1; display:flex; align-items:flex-start;}
-.margin-fill{width:100%; border-radius:2px;}
-.margin-fill.win{background:var(--good);}
-.margin-fill.loss{background:var(--red);}
 
 /* small screens */
 @media (max-width:380px){
@@ -408,6 +392,15 @@ input[type="range"]::-moz-range-thumb{
     </div>
     <p id="diff-desc" style="margin:10px 0 0; font-size:12.5px; color:var(--parchment-dim); line-height:1.5;"></p>
   </div>
+  <button class="btn btn-primary" id="btn-play">Deal Me In</button>
+  <button class="btn btn-ghost" id="btn-mp">Play a Friend Online</button>
+  <button class="btn btn-ghost" id="btn-menu-stats">View Lifetime Stats</button>
+  <button class="btn btn-ghost" id="btn-menu-settings">Settings</button>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings-screen">
+  <h1 class="disp" style="font-size:30px;">Settings</h1>
   <div class="rule-card">
     <b style="display:block; margin-bottom:8px;">Appearance</b>
     <div id="theme-select" style="display:flex; gap:8px; justify-content:center;">
@@ -442,9 +435,15 @@ input[type="range"]::-moz-range-thumb{
     </div>
     <input type="range" id="slider-gamespeed" min="100" max="300" step="25" value="100">
   </div>
-  <button class="btn btn-primary" id="btn-play">Deal Me In</button>
-  <button class="btn btn-ghost" id="btn-mp">Play a Friend Online</button>
-  <button class="btn btn-ghost" id="btn-menu-stats">View Lifetime Stats</button>
+  <div class="rule-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+      <b>Discard hint sensitivity</b>
+      <span id="discardthresh-val" class="mono" style="font-size:12px; color:var(--parchment-dim);">Show any mistake</span>
+    </div>
+    <input type="range" id="slider-discardthresh" min="0" max="30" step="1" value="0">
+    <p style="margin:8px 0 0; font-size:11.5px; color:var(--parchment-dim); text-align:left; line-height:1.5;">Only show the discard analysis when it would've cost you at least this many points on average. Set it above 0 to stop getting flagged for tiny, don't-care mistakes.</p>
+  </div>
+  <button class="btn btn-ghost" id="btn-settings-back">Back</button>
 </div>
 
 <!-- MULTIPLAYER SETUP -->
@@ -522,23 +521,6 @@ input[type="range"]::-moz-range-thumb{
       <button class="btn btn-small btn-ghost stats-cat-btn" data-cat="online">Multiplayer</button>
     </div>
     <div id="stats-body"></div>
-
-    <div class="chart-block">
-      <div id="chart-winrate-title" class="chart-title">Win rate over time</div>
-      <div id="chart-winrate" class="chart-svg-wrap"></div>
-    </div>
-
-    <div class="chart-block">
-      <div id="chart-margin-title" class="chart-title">Score margin per game</div>
-      <div id="chart-margin" class="chart-svg-wrap margin-wrap"></div>
-      <div class="chart-legend"><span><i class="dot win"></i> Win</span><span><i class="dot loss"></i> Loss</span></div>
-    </div>
-
-    <div class="chart-block">
-      <div id="chart-missed-title" class="chart-title">Points missed per game</div>
-      <div id="chart-missed" class="chart-svg-wrap"></div>
-      <div class="chart-legend"><span><i class="dot bar"></i> Missed</span><span><i class="dot trend"></i> Trend</span></div>
-    </div>
 
     <p class="stats-note">Saved in this browser only — clearing site data, switching browsers, or a new device will reset it.</p>
     <button class="btn btn-primary btn-small" id="btn-stats-close">Close</button>
@@ -683,7 +665,7 @@ const DIFF_DESC = {
   medium: "Club Player: picks its discard from its 5 best options rather than always the single best. While pegging it always grabs an obvious 15, 31, or pair, and dodges leaving the count at 5 or 21 — but doesn't think further ahead than that.",
   hard: "Sharp: always throws its mathematically best discard (full 21-combo EV search, same engine as your hint feature). While pegging it takes every scoring chance and, when nothing scores, plays a one-move-lookahead to pick whichever legal card leaves you the fewest ways to score next."
 };
-const SETTINGS = { theme:'classic', selfCount:false, cardNumberScale:1, gameSpeed:1 };
+const SETTINGS = { theme:'classic', selfCount:false, cardNumberScale:1, gameSpeed:1, discardThreshold:0 };
 /* Scales every pacing delay in the game by the speed setting. Deliberately NOT applied to the
    toast/score-popup display durations, since those exist to be read, not raced through. */
 function T(baseMs){ return Math.round(baseMs / SETTINGS.gameSpeed); }
@@ -701,7 +683,8 @@ function savePrefs(){
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       theme: SETTINGS.theme, selfCount: SETTINGS.selfCount,
-      cardNumberScale: SETTINGS.cardNumberScale, gameSpeed: SETTINGS.gameSpeed
+      cardNumberScale: SETTINGS.cardNumberScale, gameSpeed: SETTINGS.gameSpeed,
+      discardThreshold: SETTINGS.discardThreshold
     }));
   } catch(e){ /* storage unavailable, session-only */ }
 }
@@ -783,77 +766,6 @@ function recordGameToLifetime(youWon){
   saveLifetimeStats();
 }
 
-/* ---- chart renderers ---- */
-function chartEmpty(el){ el.innerHTML = '<div class="chart-empty">Play a few games to see this</div>'; }
-
-/* Bar chart with an optional smoothed rolling-average line drawn over the top —
-   the combination (raw bars + trend line) is the standard way analytics dashboards
-   show a noisy per-event metric alongside how it's trending. */
-function renderBarChartWithTrend(containerId, values, colorFn, opts){
-  const el = document.getElementById(containerId);
-  if (!values.length) return chartEmpty(el);
-  opts = opts || {};
-  const max = opts.max || Math.max(...values, 1);
-  const w = 280, h = 64;
-  const n = values.length;
-  const barW = w/n;
-  const bars = values.map((v,i)=>{
-    const bh = Math.max(2, (v/max)*h);
-    return `<rect x="${(i*barW+1).toFixed(1)}" y="${(h-bh).toFixed(1)}" width="${Math.max(1,barW-2).toFixed(1)}" height="${bh.toFixed(1)}" fill="${colorFn(v)}" rx="1.5"/>`;
-  }).join('');
-  let trendSvg = '';
-  if (opts.trend && n>=2){
-    const window = Math.max(2, Math.min(5, Math.round(n/3)));
-    const pts = values.map((_,i)=>{
-      const lo = Math.max(0,i-window+1);
-      const slice = values.slice(lo, i+1);
-      const avg = slice.reduce((a,b)=>a+b,0)/slice.length;
-      const x = i*barW + barW/2;
-      const y = h - Math.min(h-2, (avg/max)*h);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
-    trendSvg = `<polyline points="${pts}" fill="none" stroke="var(--parchment)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity=".85"/>`;
-  }
-  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart-svg">${bars}${trendSvg}</svg>`;
-}
-
-/* Cumulative win-rate line — the classic "rating over time" style trend line, with a
-   dashed 50% reference so it's obvious at a glance whether you're above or below even. */
-function renderWinRateLine(containerId, wins){
-  const el = document.getElementById(containerId);
-  if (!wins.length) return chartEmpty(el);
-  let w2 = 0;
-  const pctSeries = wins.map((won,i)=>{ if (won) w2++; return (w2/(i+1))*100; });
-  const width=280, height=64, pad=4;
-  const n = pctSeries.length;
-  const stepX = n>1 ? (width-2*pad)/(n-1) : 0;
-  const toY = p => height-pad - (p/100)*(height-2*pad);
-  const pts = pctSeries.map((p,i)=> `${(pad+i*stepX).toFixed(1)},${toY(p).toFixed(1)}`).join(' ');
-  const baselineY = toY(50).toFixed(1);
-  const lastPct = Math.round(pctSeries[pctSeries.length-1]);
-  el.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" class="chart-svg">
-      <line x1="${pad}" y1="${baselineY}" x2="${width-pad}" y2="${baselineY}" stroke="rgba(242,233,214,.25)" stroke-dasharray="3,3" stroke-width="1"/>
-      <polyline points="${pts}" fill="none" stroke="var(--brass)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-    </svg>
-    <div class="chart-corner-label">${lastPct}%</div>`;
-}
-
-/* Diverging bars centered on zero — your margin of victory (green, above) or defeat
-   (red, below) each game, at a glance shows both W/L and how close each game was. */
-function renderMarginChart(containerId, margins){
-  const el = document.getElementById(containerId);
-  if (!margins.length) return chartEmpty(el);
-  const max = Math.max(...margins.map(m=>Math.abs(m)), 10);
-  el.innerHTML = `<div class="margin-row">${margins.map(m=>{
-    const pct = Math.max(5, Math.round((Math.abs(m)/max)*100));
-    const isWin = m>=0;
-    return `<div class="margin-bar-wrap" title="${m>=0?'+':''}${m}">
-      <div class="margin-bar-top">${isWin?`<div class="margin-fill win" style="height:${pct}%"></div>`:''}</div>
-      <div class="margin-bar-bottom">${!isWin?`<div class="margin-fill loss" style="height:${pct}%"></div>`:''}</div>
-    </div>`;
-  }).join('')}</div>`;
-}
-
 let currentStatsCategory = 'medium';
 function selectStatsCategory(cat){
   if (!STATS_CATEGORIES.includes(cat)) cat = 'medium';
@@ -882,13 +794,6 @@ function renderStatsBody(){
     <div class="stat-row"><span>Skunks (given / taken)</span><span>${skunkText}</span></div>
     <div class="stat-row dim"><span>Last played</span><span>${lastPlayed}</span></div>
   `;
-  const recent = s.history.slice(-15);
-  document.getElementById('chart-winrate-title').textContent = `Win rate over time (cumulative)`;
-  renderWinRateLine('chart-winrate', recent.map(h=>h.won));
-  document.getElementById('chart-margin-title').textContent = `Score margin per game (you − opponent)`;
-  renderMarginChart('chart-margin', recent.map(h=>h.youScore - h.oppScore));
-  document.getElementById('chart-missed-title').textContent = `Points missed per game — lower is better`;
-  renderBarChartWithTrend('chart-missed', recent.map(h=>h.missed), v=> v===0 ? 'var(--good)' : 'var(--brass)', {trend:true});
 }
 
 
@@ -1512,9 +1417,10 @@ function renderHint(){
   if (!G.handAnalysis || !G.chosenDiscardEV){ panel.classList.remove('show'); panel.innerHTML=''; return true; }
   const best = G.handAnalysis[0];
   const mine = G.chosenDiscardEV;
-  const optimal = Math.abs(mine.combined - best.combined) < 0.01;
+  const gap = best.combined - mine.combined;
+  const optimal = gap < SETTINGS.discardThreshold;
 
-  // Only surface the panel when the discard was NOT optimal.
+  // Only surface the panel when the discard cost more than the sensitivity threshold allows.
   if (optimal){
     panel.classList.remove('show');
     panel.innerHTML='';
@@ -2019,6 +1925,23 @@ document.getElementById('slider-gamespeed').addEventListener('input', (e)=>{
   document.getElementById('gamespeed-val').textContent = (pct/100).toFixed(2).replace(/\.?0+$/,'')+'x';
   savePrefs();
 });
+function formatDiscardThreshLabel(v){
+  return v<=0 ? 'Show any mistake' : `Hide under ${v.toFixed(1)} pts`;
+}
+document.getElementById('slider-discardthresh').addEventListener('input', (e)=>{
+  const raw = parseInt(e.target.value, 10);
+  SETTINGS.discardThreshold = raw/10;
+  document.getElementById('discardthresh-val').textContent = formatDiscardThreshLabel(SETTINGS.discardThreshold);
+  savePrefs();
+});
+document.getElementById('btn-menu-settings').addEventListener('click', ()=>{
+  document.getElementById('menu').style.display='none';
+  document.getElementById('settings-screen').classList.add('active');
+});
+document.getElementById('btn-settings-back').addEventListener('click', ()=>{
+  document.getElementById('settings-screen').classList.remove('active');
+  document.getElementById('menu').style.display='flex';
+});
 
 /* Apply any saved preferences now that all the controls above exist and their handlers are wired. */
 (function applyLoadedPrefs(){
@@ -2042,6 +1965,11 @@ document.getElementById('slider-gamespeed').addEventListener('input', (e)=>{
     document.documentElement.style.setProperty('--game-speed', p.gameSpeed);
     document.getElementById('slider-gamespeed').value = pct;
     document.getElementById('gamespeed-val').textContent = p.gameSpeed.toFixed(2).replace(/\.?0+$/,'')+'x';
+  }
+  if (typeof p.discardThreshold === 'number'){
+    SETTINGS.discardThreshold = p.discardThreshold;
+    document.getElementById('slider-discardthresh').value = Math.round(p.discardThreshold*10);
+    document.getElementById('discardthresh-val').textContent = formatDiscardThreshLabel(p.discardThreshold);
   }
 })();
 
