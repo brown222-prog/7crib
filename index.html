@@ -659,6 +659,12 @@ function analyzeDiscards(sevenCards, unseen, isDealer){
 
 /* ============================= GAME STATE ============================= */
 let G = null;
+/* Bumped every time a brand new game actually starts (newGame / applyRemoteNewGame). Any
+   deferred callback (a setTimeout, a stale queued network message) that fires after a new
+   game has already begun checks this and bails instead of mutating the wrong game's state —
+   this is what was causing leftover hands from a finished game to silently score points into
+   the next one, and caused the two multiplayer clients to drift out of sync with each other. */
+let GAME_SESSION = 0;
 let DIFFICULTY = 'medium';
 const DIFF_DESC = {
   easy: "Rookie: throws to the crib almost at random and mostly plays blind while pegging, only sometimes noticing a free 15 or 31. Leaves the classic traps (5s and 21s) wide open.",
@@ -959,9 +965,10 @@ function applyRemoteDeal(msg){
 function applyRemoteNewGame(){
   document.getElementById('overlay').classList.remove('show');
   updateOpponentLabels();
+  MP_INBOX = []; // discard any leftover queued messages from the game that just ended
   G = {
     scoreYou:0, scoreAI:0, dealerIsYou:false, phase:'waiting', mode:'online',
-    statsCategory: 'online',
+    statsCategory: 'online', sessionId: ++GAME_SESSION,
     you:[], ai:[], crib:[], cut:null, deck:[], _pendingCut:null,
     discardYou:[], selected:[], pegPile:[], pegCount:0,
     pegHandYou:[], pegHandAI:[], playedYou:[], playedAI:[],
@@ -977,11 +984,13 @@ function applyRemoteNewGame(){
 
 function newGame(){
   const mode = MP.connected ? 'online' : 'ai';
+  MP_INBOX = []; // discard any leftover queued messages from the game that just ended
   G = {
     scoreYou:0, scoreAI:0,
     dealerIsYou: false,
     phase:'idle',
     mode: mode,
+    sessionId: ++GAME_SESSION,
     statsCategory: mode==='online' ? 'online' : DIFFICULTY,
     you:[], ai:[], crib:[], cut:null, deck:[], _pendingCut:null,
     discardYou:[], selected:[],
@@ -1725,6 +1734,13 @@ function startCounting(){
   const order = G.dealerIsYou ? ['ai','you','crib'] : ['you','ai','crib'];
   let i=0;
   function step(){
+    // If an earlier hand in this same counting sequence already pushed someone to 121,
+    // the game is decided — stop revealing further hands (they never should have counted
+    // toward the score) and go straight to the game-over screen. Previously this kept
+    // right on revealing and scoring the remaining hands even after the game was already
+    // won, which is exactly what caused stray points to show up at the start of the next
+    // game once "Play Again" reset the board out from under those still-pending reveals.
+    if (G.scoreYou>=121 || G.scoreAI>=121){ endGame(); return; }
     if (i>=order.length){ return afterCounting(); }
     const who = order[i]; i++;
     revealCount(who, step);
@@ -1852,10 +1868,19 @@ function addScore(who, pts, reason, silent, popup){
   if (popup) spawnScorePopup(who, pts);
   // Track every point the player earns all game — pegging, hand-counting, and crib alike.
   if (who==='you'){ G.totalPointsYou = (G.totalPointsYou||0) + pts; }
-  if (G.scoreYou>=121 || G.scoreAI>=121){ setTimeout(endGame, T(900)); }
+  if ((G.scoreYou>=121 || G.scoreAI>=121) && !G.endGameScheduled){
+    // Only ever schedule this once per game — multiple hands crossing 121 in the same
+    // counting sequence (see startCounting's guard) used to each schedule their own
+    // redundant timer. Also captures which game this belongs to, so if a new game has
+    // already started by the time this fires, it's recognized as stale and skipped.
+    G.endGameScheduled = true;
+    const sid = G.sessionId;
+    setTimeout(()=>{ if (G && G.sessionId===sid) endGame(); }, T(900));
+  }
 }
 
 function endGame(){
+  if (!G || G.phase==='over') return; // already ended — never record or display the same game twice
   G.phase='over';
   const youWin = G.scoreYou>=121;
   const winnerScore = youWin?G.scoreYou:G.scoreAI;
